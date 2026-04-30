@@ -18,7 +18,7 @@ const router=useRouter()
     console.log({ email, password, rememberMe });
     setTimeout(() => setLoading(false), 1000);
   };
-
+console.log("hassan")
   return (
      <div className="min-h-screen flex items-center justify-center  p-6">
       {/* White Card */}
