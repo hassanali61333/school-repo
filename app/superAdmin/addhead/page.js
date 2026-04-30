@@ -113,7 +113,7 @@ export default function SchoolHeadPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
         {heads.length === 0 ? (
           <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px", color: "#9ca3af" }}>
-    No school yet
+    No head assign
           </div>
         ) : (
           heads.map((head) => (
