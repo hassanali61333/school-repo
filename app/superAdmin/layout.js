@@ -8,18 +8,23 @@ export default function SuperAdminLayout({ children }) {
   const getNavItems = () => {
     const items = [
       { label: "Dashboard", href: "/superAdmin", icon: "⊞" },
-      { label: "Schools", href: "/superAdmin/schools", icon: "🏫" },
+      { label: "Add Schools", href: "/superAdmin/schools", icon: "🏫" },
+      { label: "All school", href: "/superAdmin/allschool", icon: "🏫" },
+      { label: "Add Head", href: "/superAdmin/addhead", icon: "👨‍🏫" }
+
     ];
     
-    // School Head option sirf tab show karo jab schools available hain
-    if (hasSchools) {
-      items.push({ label: "School Head", href: "/superAdmin/addhead", icon: "👨‍🏫" });
-    }
+  
     
     items.push({ label: "Reports", href: "/superAdmin/reports", icon: "📊" });
     
     return items;
   };
+
+  const handlelogout=()=>{
+    localStorage.removeItem("handlelogout");
+    localStorage.removeItem("AdminID")
+  }
   
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f4f6f9", fontFamily: "'Segoe UI', sans-serif" }}>
@@ -64,7 +69,9 @@ export default function SuperAdminLayout({ children }) {
             background: "transparent", border: "1px solid #374151",
             color: "#9ca3af", cursor: "pointer", fontSize: "14px",
             display: "flex", alignItems: "center", gap: "8px",
-          }}>
+          }}
+          onClick={handlelogout}
+          >
             🚪 Logout
           </button>
         </div>

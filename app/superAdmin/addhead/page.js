@@ -16,7 +16,8 @@ export default function SchoolHeadPage() {
     headPhone: "",
     headEmail: "",
     role: "",
-    joiningDate: ""
+    joiningDate: "",
+    password:""
   });
   const [heads, setHeads] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -32,7 +33,8 @@ export default function SchoolHeadPage() {
       headPhone: "",
       headEmail: "",
       role: "",
-      joiningDate: ""
+      joiningDate: "",
+      password:"",
     });
     setShowModal(true);
   };
@@ -87,11 +89,7 @@ export default function SchoolHeadPage() {
     boxSizing: "border-box",
   };
 
-   useEffect(() => {
-  if (schools.length === 0) {
-    router.push("/superAdmin");
-  }
-}, [schools]);
+
 
   return (
     <div>
@@ -222,6 +220,19 @@ export default function SchoolHeadPage() {
                   placeholder="head@school.com"
                   value={formData.headEmail}
                   onChange={(e) => setFormData({ ...formData, headEmail: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+
+               <div>
+                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
+                  password
+                </label>
+                <input
+                  type="password"
+                  placeholder="......"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   style={inputStyle}
                 />
               </div>

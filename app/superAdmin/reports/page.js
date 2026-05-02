@@ -1,25 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getReports } from "@/app/services/schoolService.js";
 
 export default function ReportsPage() {
   const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchReport(); }, []);
-
-  const fetchReport = async () => {
-    try {
-      const res = await getReports();
-      if (res.data.success) setReport(res.data.report);
-    } catch (err) {
-      console.log(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) return <div style={{ textAlign: "center", padding: "60px", color: "#6b7280" }}>Loading...</div>;
 
   return (
     <div>
