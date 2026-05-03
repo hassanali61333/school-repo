@@ -23,7 +23,7 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     fetchDashboard();
   }, []);
-
+console.log("ads")
   const fetchDashboard = async () => {
     try {
       const token = localStorage.getItem("token");
