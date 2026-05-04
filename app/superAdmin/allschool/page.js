@@ -76,22 +76,17 @@ export default function AllSchools() {
                 className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
                 onClick={() => handleSchoolClick(school)}
               >
-{school.imageName ? (
+{school.image ? (
   <div className="h-48 overflow-hidden">
-    <img 
-      src={`/api/images/${school.imageName}`}  
-      alt={school.schoolName}                  
+    <img
+      src={`data:${school.image.type};base64,${school.image.base64}`}
+      alt={school.schoolName}
       className="w-full h-full object-cover"
-      onError={(e) => {
-        e.target.onerror = null;          
-        e.target.style.display = 'none';      
-        e.target.parentElement.innerHTML = '<div class="h-full flex items-center justify-center bg-gray-100 text-gray-500">Image not found</div>';
-      }}
     />
   </div>
 ) : (
   <div className="h-48 flex items-center justify-center bg-gray-100 text-gray-500">
-    Image not found
+    No Image
   </div>
 )}
                 <div className="p-6">

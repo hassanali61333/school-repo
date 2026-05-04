@@ -1,10 +1,11 @@
-// app/superAdmin/schools/page.js
+
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux'; // ✅ Added useDispatch
 import { setAdminID } from '@/app/store/userSlice';
+import { addSchool } from '@/app/services/schoolService.js';
 
 // --- Helper Components (same as before) ---
 const InputField = ({ label, name, value, onChange, type = 'text', required = false, placeholder = '', error }) => (
@@ -104,7 +105,7 @@ export default function SchoolRegistrationForm() {
       smartClassrooms: false,
     },
   });
-
+const [imageFile, setImageFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -156,55 +157,52 @@ export default function SchoolRegistrationForm() {
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitError('');
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    // ✅ Check if adminID exists
-    if (!adminID) {
-      setSubmitError('Admin not authenticated. Please login again.');
-      return;
+  if (!adminID) {
+    alert("Admin not logged in");
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const data = new FormData();
+
+    data.append("schoolName", formData.schoolName);
+    data.append("address", formData.address);
+    data.append("establishedYear", formData.establishedYear);
+    data.append("schoolType", formData.schoolType);
+    data.append("adminId", adminID);
+    data.append("displayName",formData.displayName)
+data.append("facilities", JSON.stringify(formData.facilities)); 
+    // ✅ IMAGE FILE
+    if (imageFile) {
+      data.append("image", imageFile);
     }
 
-    if (!validate()) {
-      return;
-    }
+    const res = await addSchool(data)
+console.log("addschool",res.data.data.message)
 
-    setIsLoading(true);
 
-    try {
-      const payload = {
-        ...formData,
-        schoolName: formData.schoolName,
-        establishedYear: parseInt(formData.establishedYear),
-        adminId: adminID, // ✅ Now this will have the value!
-        schoolId: formData.schoolId || undefined,
-      };
 
-      console.log("Sending payload with adminId:", payload); // ✅ Debug log
+if (res.data.success) {
+  alert(res.data.data.message || "School added successfully");
+} 
 
-      const response = await fetch('/api/addschool', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
 
-      const data = await response.json();
+router.push("/superAdmin/allschool")
+  
 
-      console.log("data",data)
+  } catch (err) {
+   const message = err.response?.data?.error || "Something went wrong";
+  alert(message);
+    console.log(err);
+  }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to register school');
-      }
-
-      console.log("School registered successfully:", data);
-      router.push('/superAdmin/schools?success=School registered successfully');
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Something went wrong');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  setIsLoading(false);
+};
 
   // Facility icons and labels
   const facilityOptions = [
@@ -300,20 +298,19 @@ export default function SchoolRegistrationForm() {
                       <option value="boarding">Boarding School</option>
                     </select>
                   </div>
-                  <InputField
-                    label="Image Name (Optional)"
-                    name="imageName"
-                    value={formData.imageName}
-                    onChange={handleChange}
-                    placeholder="school-logo.png"
-                  />
-                  <InputField
-                    label="School ID (Optional - Auto-generated)"
-                    name="schoolId"
-                    value={formData.schoolId}
-                    onChange={handleChange}
-                    placeholder="Leave empty to auto-generate"
-                  />
+                <div>
+  <label className="text-sm font-medium text-gray-700 mb-1 block">
+    School Image
+  </label>
+
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => setImageFile(e.target.files[0])}
+    className="w-full border p-2 rounded-lg"
+  />
+</div>
+                
 
                     <InputField
                     label="School ID (Optional - Auto-generated)"

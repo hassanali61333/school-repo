@@ -1,21 +1,30 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebaseAdmin"; // Firebase Admin config
 
+
+
 export async function POST(req) {
   try {
-    const body = await req.json();
+    // ✅ FORM DATA READ (IMPORTANT CHANGE)
+    const form = await req.formData();
 
-    const {
-      schoolId,
-      schoolName,
-      displayName,
-      address,
-      establishedYear,
-      schoolType,
-      imageName,
-      facilities = {},
-      adminId = null,
-    } = body;
+    const schoolId = form.get("schoolId");
+    const schoolName = form.get("schoolName");
+    const displayName = form.get("displayName");
+    const address = form.get("address");
+    const establishedYear = form.get("establishedYear");
+    const schoolType = form.get("schoolType");
+    const adminId = form.get("adminId");
+
+    const imageFile = form.get("image"); // 📁 FILE
+
+    // optional JSON string (if you send facilities as string)
+    let facilities = form.get("facilities");
+    try {
+      facilities = facilities ? JSON.parse(facilities) : {};
+    } catch {
+      facilities = {};
+    }
 
     // ===== Validation =====
     if (!schoolName || !address || !establishedYear) {
@@ -48,17 +57,30 @@ export async function POST(req) {
       );
     }
 
+    // ===== IMAGE HANDLING (simple base64) =====
+    let imageData = null;
+
+    if (imageFile && typeof imageFile !== "string") {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+
+      imageData = {
+        name: imageFile.name,
+        type: imageFile.type,
+        base64: buffer.toString("base64"),
+      };
+    }
+
     // ===== Save Data =====
     const newSchool = {
       schoolId: schoolId || `school-${Date.now()}`,
       schoolName: schoolName.toLowerCase(),
       displayName,
       address,
-      establishedYear,
+      establishedYear: Number(establishedYear),
       schoolType,
-      imageName: imageName || null,
-      facilities,
       adminId,
+      facilities,
+      image: imageData, // ✅ stored image
       status: "active",
       createdAt: new Date().toISOString(),
     };

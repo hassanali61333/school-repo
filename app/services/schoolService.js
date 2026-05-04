@@ -15,3 +15,11 @@ export const loginAPI = (data) => {
 export const getAllSchools = () => {
   return api.get("/addschool");
 };
+
+export const addSchool = (data) => {
+  return api.post("/addschool", data, {
+    headers: {
+      "Content-Type": "multipart/form-data", // FormData ke liye zaroori
+    },
+  });
+};
