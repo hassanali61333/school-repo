@@ -1,14 +1,28 @@
 "use client";
-import { useState,useEffect } from "react";
-import { useSelector } from 'react-redux';
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from "next/navigation";
+import { getAllSchools, addSchoolHead } from "@/app/services/schoolService";
+import { setAdminID } from "@/app/store/userSlice";
 export default function SchoolHeadPage() {
-
   const router = useRouter();
 
+  const dispatch=useDispatch()
+  useEffect(() => {
+    const admin = localStorage.getItem("LoginAdmin");
+    const adminId = localStorage.getItem("AdminID");
+    
+    if (admin && adminId) {
+      dispatch(setAdminID(adminId));
+      console.log("AdminID loaded to Redux:", adminId);
+    }
+  }, [dispatch]);
 
- 
-  const { schools } = useSelector((state) => state.schools);
+  // ✅ Get adminID from Redux
+  const adminID = useSelector((state) => state.users.adminID);
+  console.log("AdminID from Redux:", adminID);
+
+  const [schoolsList, setSchoolsList] = useState([]);
   const [formData, setFormData] = useState({
     schoolId: "",
     schoolName: "",
@@ -17,12 +31,25 @@ export default function SchoolHeadPage() {
     headEmail: "",
     role: "",
     joiningDate: "",
-    password:""
+    password: ""
   });
   const [heads, setHeads] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editHead, setEditHead] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // ✅ Schools fetch on mount
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const res = await getAllSchools();
+        setSchoolsList(res.data.data || []);
+      } catch (err) {
+        console.error("Schools load error:", err);
+      }
+    };
+    fetchSchools();
+  }, []);
 
   const openAdd = () => {
     setEditHead(null);
@@ -34,7 +61,7 @@ export default function SchoolHeadPage() {
       headEmail: "",
       role: "",
       joiningDate: "",
-      password:"",
+      password: "",
     });
     setShowModal(true);
   };
@@ -45,38 +72,58 @@ export default function SchoolHeadPage() {
     setShowModal(true);
   };
 
+  // ✅ Single handleSchoolChange — schoolId aur schoolName dono set hote hain
   const handleSchoolChange = (e) => {
     const schoolId = e.target.value;
-    const selectedSchool = schools.find(s => s._id === schoolId);
+    const selected = schoolsList.find(s => s.schoolId === schoolId);
     setFormData({
       ...formData,
       schoolId: schoolId,
-      schoolName: selectedSchool?.name || ""
+      schoolName: selected?.schoolName || "",
     });
   };
 
-  const handleSave = () => {
-    if (!formData.schoolId || !formData.headName) {
-      alert("School aur Head Name zaroori hai!");
-      return;
-    }
+  // ✅ handleSave — API call with schoolId + schoolName
+const handleSave = async () => {
+  if (!formData.schoolId || !formData.headName) {
+    alert("School aur Head Name zaroori hai!");
+    return;
+  }
+  if (!formData.headEmail || !formData.password) {
+    alert("Email aur Password zaroori hai!");
+    return;
+  }
 
-    setSaving(true);
-    
-    setTimeout(() => {
-      if (editHead) {
-        setHeads(heads.map(h => h.id === editHead.id ? { ...formData, id: editHead.id } : formData));
-      } else {
-        const newHead = {
-          id: Date.now().toString(),
-          ...formData
-        };
-        setHeads([...heads, newHead]);
-      }
-      setSaving(false);
+  setSaving(true);
+
+  try {
+    const data = new FormData();
+
+    data.append("adminId", adminID);
+    data.append("schoolId", formData.schoolId);
+    data.append("schoolName", formData.schoolName);
+    data.append("name", formData.headName);
+    data.append("email", formData.headEmail);
+    data.append("phone", formData.headPhone);
+    data.append("role", formData.role);
+    data.append("joiningDate", formData.joiningDate);
+    data.append("password", formData.password);
+
+    const res = await addSchoolHead(data);
+
+    console.log(res);
+
+    if (res.data.success) {
+      setHeads([...heads, { id: res.data.data.headId, ...res.data.data }]);
+      alert("✅ Head added!");
       setShowModal(false);
-    }, 500);
-  };
+    }
+  } catch (err) {
+    alert(err.response?.data?.error || "Something went wrong");
+  }
+
+  setSaving(false);
+};
 
   const handleDelete = (id) => {
     if (!confirm("Delete this head?")) return;
@@ -88,8 +135,6 @@ export default function SchoolHeadPage() {
     border: "1px solid #e5e7eb", fontSize: "14px", outline: "none",
     boxSizing: "border-box",
   };
-
-
 
   return (
     <div>
@@ -111,7 +156,7 @@ export default function SchoolHeadPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
         {heads.length === 0 ? (
           <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px", color: "#9ca3af" }}>
-    No head assign
+            No head assign
           </div>
         ) : (
           heads.map((head) => (
@@ -165,101 +210,56 @@ export default function SchoolHeadPage() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {/* School Dropdown */}
+
+              {/* ✅ School Dropdown */}
               <div>
                 <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
                   Select School *
                 </label>
-                <select
-                  value={formData.schoolId}
-                  onChange={handleSchoolChange}
-                  style={inputStyle}
-                >
+                <select value={formData.schoolId} onChange={handleSchoolChange} style={inputStyle}>
                   <option value="">-- Select School --</option>
-                  {schools.map((school) => (
-                    <option key={school._id} value={school._id}>
-                      {school.name} - {school.city}
+                  {schoolsList.map((school) => (
+                    <option key={school.schoolId} value={school.schoolId}>
+                      {school.schoolName}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Head Fields */}
               <div>
-                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
-                  Head Name *
-                </label>
-                <input
-                  type="text"
-                  placeholder="Principal / Director Name"
-                  value={formData.headName}
-                  onChange={(e) => setFormData({ ...formData, headName: e.target.value })}
-                  style={inputStyle}
-                />
+                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>Head Name *</label>
+                <input type="text" placeholder="Principal / Director Name" value={formData.headName}
+                  onChange={(e) => setFormData({ ...formData, headName: e.target.value })} style={inputStyle} />
               </div>
 
               <div>
-                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
-                  Head Phone
-                </label>
-                <input
-                  type="text"
-                  placeholder="03XX-XXXXXXX"
-                  value={formData.headPhone}
-                  onChange={(e) => setFormData({ ...formData, headPhone: e.target.value })}
-                  style={inputStyle}
-                />
+                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>Head Phone</label>
+                <input type="text" placeholder="03XX-XXXXXXX" value={formData.headPhone}
+                  onChange={(e) => setFormData({ ...formData, headPhone: e.target.value })} style={inputStyle} />
               </div>
 
               <div>
-                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
-                  Head Email
-                </label>
-                <input
-                  type="email"
-                  placeholder="head@school.com"
-                  value={formData.headEmail}
-                  onChange={(e) => setFormData({ ...formData, headEmail: e.target.value })}
-                  style={inputStyle}
-                />
-              </div>
-
-               <div>
-                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
-                  password
-                </label>
-                <input
-                  type="password"
-                  placeholder="......"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  style={inputStyle}
-                />
+                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>Head Email</label>
+                <input type="email" placeholder="head@school.com" value={formData.headEmail}
+                  onChange={(e) => setFormData({ ...formData, headEmail: e.target.value })} style={inputStyle} />
               </div>
 
               <div>
-                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
-                  Role / Designation
-                </label>
-                <input
-                  type="text"
-                  placeholder="Principal / Vice Principal / Coordinator"
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  style={inputStyle}
-                />
+                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>Password</label>
+                <input type="password" placeholder="......" value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })} style={inputStyle} />
               </div>
 
               <div>
-                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>
-                  Joining Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.joiningDate}
-                  onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
-                  style={inputStyle}
-                />
+                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>Role / Designation</label>
+                <input type="text" placeholder="Principal / Vice Principal / Coordinator" value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })} style={inputStyle} />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "13px", color: "#374151", fontWeight: "500", display: "block", marginBottom: "6px" }}>Joining Date</label>
+                <input type="date" value={formData.joiningDate}
+                  onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })} style={inputStyle} />
               </div>
             </div>
 
