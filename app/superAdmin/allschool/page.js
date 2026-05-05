@@ -18,7 +18,7 @@ export default function AllSchools() {
   const [editImage, setEditImage] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  useEffect(() => { fetchSchools(); }, []);
+  // useEffect(() => { fetchSchools(); }, []);
 
   const fetchSchools = async () => {
     try {

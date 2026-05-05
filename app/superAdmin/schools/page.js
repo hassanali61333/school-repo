@@ -80,7 +80,7 @@ export default function SchoolRegistrationForm() {
       dispatch(setAdminID(adminId));
       console.log("AdminID loaded to Redux:", adminId);
     }
-  }, [dispatch]);
+  }, []);
 
   // ✅ Get adminID from Redux
   const adminID = useSelector((state) => state.users.adminID);

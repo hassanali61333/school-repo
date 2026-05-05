@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebaseAdmin"; // Firebase Admin config
 
-
+// ✅ IMPORTANT: Add this config for file uploads
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 export async function POST(req) {
   try {
-    // ✅ FORM DATA READ (IMPORTANT CHANGE)
+    // ✅ FORM DATA READ
     const form = await req.formData();
 
     const schoolId = form.get("schoolId");
@@ -15,21 +20,21 @@ export async function POST(req) {
     const establishedYear = form.get("establishedYear");
     const schoolType = form.get("schoolType");
     const adminId = form.get("adminId");
-
-    const imageFile = form.get("image"); // 📁 FILE
-
-    // optional JSON string (if you send facilities as string)
+    const imageFile = form.get("image");
+    
+    // Parse facilities
     let facilities = form.get("facilities");
     try {
       facilities = facilities ? JSON.parse(facilities) : {};
-    } catch {
+    } catch (error) {
+      console.error("Error parsing facilities:", error);
       facilities = {};
     }
 
     // ===== Validation =====
     if (!schoolName || !address || !establishedYear) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields", message: "Please fill all required fields" },
         { status: 400 }
       );
     }
@@ -39,65 +44,89 @@ export async function POST(req) {
 
     if (year < 1850 || year > currentYear) {
       return NextResponse.json(
-        { error: "Invalid year" },
+        { error: "Invalid year", message: `Year must be between 1850 and ${currentYear}` },
         { status: 400 }
       );
     }
 
     // ===== Duplicate Check =====
-    const snapshot = await db
-      .collection("Schools")
+    const schoolsRef = db.collection("Schools");
+    const snapshot = await schoolsRef
       .where("schoolName", "==", schoolName.toLowerCase())
       .get();
 
     if (!snapshot.empty) {
       return NextResponse.json(
-        { error: "School already exists" },
+        { error: "School already exists", message: "A school with this name already exists" },
         { status: 409 }
       );
     }
 
-    // ===== IMAGE HANDLING (simple base64) =====
+    // ===== IMAGE HANDLING =====
     let imageData = null;
 
-    if (imageFile && typeof imageFile !== "string") {
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-
-      imageData = {
-        name: imageFile.name,
-        type: imageFile.type,
-        base64: buffer.toString("base64"),
-      };
+    if (imageFile && imageFile.size > 0) {
+      try {
+        const buffer = Buffer.from(await imageFile.arrayBuffer());
+        imageData = {
+          name: imageFile.name,
+          type: imageFile.type,
+          size: imageFile.size,
+          base64: buffer.toString("base64"),
+        };
+      } catch (error) {
+        console.error("Error processing image:", error);
+      }
     }
+
+    // ===== Generate School ID if not provided =====
+    const finalSchoolId = schoolId || `SCH-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
     // ===== Save Data =====
     const newSchool = {
-      schoolId: schoolId || `school-${Date.now()}`,
+      schoolId: finalSchoolId,
       schoolName: schoolName.toLowerCase(),
-      displayName,
+      displayName: displayName || schoolName,
       address,
-      establishedYear: Number(establishedYear),
-      schoolType,
-      adminId,
+      establishedYear: year,
+      schoolType: schoolType || "public",
+      adminId: adminId || null,
       facilities,
-      image: imageData, // ✅ stored image
+      image: imageData,
       status: "active",
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    await db.collection("Schools").doc(newSchool.schoolId).set(newSchool);
+    // Remove undefined values
+    Object.keys(newSchool).forEach(key => {
+      if (newSchool[key] === undefined) {
+        delete newSchool[key];
+      }
+    });
+
+    await schoolsRef.doc(finalSchoolId).set(newSchool);
 
     return NextResponse.json({
       success: true,
-      data: newSchool,
+      message: "School registered successfully",
+      data: {
+        ...newSchool,
+        image: imageData ? { name: imageData.name, type: imageData.type } : null
+      }
     });
 
   } catch (error) {
-    console.error("API Error:", error);
-
+    console.error("API Error Details:", error);
+    
+    // Send detailed error for debugging
     return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
+      { 
+        error: "Server error", 
+        message: error.message,
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+      },
+      { status: 500 },
     );
   }
 }
