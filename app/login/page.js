@@ -72,6 +72,7 @@ const handleSubmit = async (e) => {
       password: formData.password,
     });
 
+    console.log("Login response:", res.data);
     router.push("/superAdmin")
 console.log("res",res.data.user.id)
 
