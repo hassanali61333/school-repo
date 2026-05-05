@@ -22,7 +22,7 @@ export default function SuperAdminDashboard() {
   const [school, setSchool] = useState([]);
 
 
-
+console.log("hassan")
 
   useEffect(()=>{
           fetchschool()
