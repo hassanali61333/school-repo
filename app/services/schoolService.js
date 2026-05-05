@@ -39,14 +39,8 @@ export const updateSchool = (data) => {
 };
 
 
-export const getAllHeads = (schoolId) => 
-  api.get(schoolId ? `/addhead?schoolId=${schoolId}` : "/addhead");
-
-export const addSchoolHead = (data) => 
-  api.post("/addhead", data); // FormData automatically works
-
-export const updateSchoolHead = (data) => 
-  api.put("/addhead", data);
-
-export const deleteSchoolHead = (headId) => 
-  api.delete(`/addhead?headId=${headId}`);
+export const addSchoolHead = (data) => api.post("/addhead", data, { headers: {
+      "Content-Type": "multipart/form-data", // FormData ke liye zaroori
+    }},);
+export const getAllHeads = (adminId) =>
+  api.get(`/addhead?adminId=${adminId}`,);

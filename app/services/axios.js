@@ -7,4 +7,12 @@ const api = axios.create({
   },
 });
 
+// ✅ THIS IS THE FIX — delete Content-Type when sending FormData
+api.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
+  return config;
+});
+
 export default api;
