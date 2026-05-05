@@ -18,8 +18,7 @@ export default function AllSchools() {
   const [editImage, setEditImage] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  // useEffect(() => { fetchSchools(); }, []);
-console.log("hassna")
+  useEffect(() => { fetchSchools(); }, []);
   const fetchSchools = async () => {
     try {
       setLoading(true);
