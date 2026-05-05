@@ -19,7 +19,7 @@ export default function AllSchools() {
   const [updating, setUpdating] = useState(false);
 
   // useEffect(() => { fetchSchools(); }, []);
-
+console.log("hassna")
   const fetchSchools = async () => {
     try {
       setLoading(true);
