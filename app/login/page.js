@@ -234,7 +234,7 @@ console.log("res",res.data.user.id)
                 </span>
               </label>
               <Link
-                href="/admin/forgot-password"
+             
                 className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
               >
                 Forgot password?
