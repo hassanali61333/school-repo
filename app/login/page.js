@@ -233,12 +233,12 @@ console.log("res",res.data.user.id)
                   Remember me
                 </span>
               </label>
-              <Link
+              <button
              
                 className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
               >
                 Forgot password?
-              </Link>
+              </button>
             </div>
 
             {/* Submit Error */}
