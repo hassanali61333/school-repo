@@ -19,7 +19,6 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-console.log("hasssan")
   // Load saved email if "Remember Me" was checked
   useEffect(() => {
     const savedEmail = localStorage.getItem("adminEmail");
