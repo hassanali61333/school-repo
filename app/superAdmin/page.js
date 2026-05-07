@@ -13,14 +13,13 @@ const statCards = [
 
 export default function SuperAdminDashboard() {
 
- 
   const [totalSchools,settotalSchools] = useState(0);
   const [totalStudents, settotalStudents] = useState(0);
   const [totalTeachers, settotalTeachers] = useState(0);
   const [feesCollected, setfeesCollected] = useState(0);
 
   const [school, setSchool] = useState([]);
-
+  const [loadingSchools, setLoadingSchools] = useState(false); // ← added
 
 console.log("hassan")
 
@@ -29,23 +28,20 @@ console.log("hassan")
   },[])
 
   const fetchschool = async()=>{
+    setLoadingSchools(true); // ← added
     try{
-      
       const resposese= await getAllSchools()
       setSchool(resposese.data.data)
-settotalSchools(resposese.data.data.length)
-
+      settotalSchools(resposese.data.data.length)
       console.log("all school",resposese.data.data.length)
     }
     catch(err) {
       alert("error check console")
       console.log(err.message)
+    } finally {
+      setLoadingSchools(false); // ← added
     }
   }
-
-
-
-
 
   return (
     <div>
@@ -112,11 +108,9 @@ settotalSchools(resposese.data.data.length)
       <div style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)", border: "1px solid #f0f0f0" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ fontSize: "16px", fontWeight: "600", color: "#111827", margin: 0 }}>All Schools</h2>
-   
         </div>
 
 {
-
 <div className="overflow-x-auto bg-white rounded-xl shadow border border-gray-200">
   
   {/* Header */}
@@ -139,7 +133,20 @@ settotalSchools(resposese.data.data.length)
 
     {/* TBODY */}
     <tbody className="divide-y divide-gray-100">
-      {school.length === 0 ? (
+      {/* ── Loader row ── */}
+      {loadingSchools ? (
+        <tr>
+          <td colSpan={5} className="py-12 text-center">
+            <div className="flex items-center justify-center gap-3 text-gray-400">
+              <svg className="animate-spin h-5 w-5 text-[#3b5bdb]" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              <span className="text-sm">Loading schools…</span>
+            </div>
+          </td>
+        </tr>
+      ) : school.length === 0 ? (
         <tr>
           <td colSpan={5} className="text-center py-10 text-gray-400">
             No schools added yet

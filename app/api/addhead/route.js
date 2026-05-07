@@ -215,7 +215,7 @@ export async function PUT(req) {
       );
     }
 
-    // ===== CHECK EXIST =====
+   
     const headRef = db.collection("head").doc(headId);
     const headDoc = await headRef.get();
 

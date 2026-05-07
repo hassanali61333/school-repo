@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
-import { getAllSchools, addSchoolHead, getAllHeads } from "@/app/services/schoolService";
+import { getAllSchools, addSchoolHead, getAllHeads, updateHead, deleteHead } from "@/app/services/schoolService";
 import { setAdminID } from "@/app/store/userSlice";
 
 export default function HeadsPage() {
@@ -18,15 +18,21 @@ export default function HeadsPage() {
   const adminID = useSelector((s) => s.users.adminID);
 
   // ── Lists ─────────────────────────────────────────────
-  const [heads,         setHeads]         = useState([]);
-  const [schools,       setSchools]       = useState([]);
-  const [loadingHeads,  setLoadingHeads]  = useState(false);
-  const [loadingSchools,setLoadingSchools]= useState(false);
+  const [heads,          setHeads]          = useState([]);
+  const [schools,        setSchools]        = useState([]);
+  const [loadingHeads,   setLoadingHeads]   = useState(false);
+  const [loadingSchools, setLoadingSchools] = useState(false);
 
   // ── Modal ─────────────────────────────────────────────
-  const [showModal,     setShowModal]     = useState(false);
-  const [isSubmitting,  setIsSubmitting]  = useState(false);
-  const [errors,        setErrors]        = useState({});
+  const [showModal,    setShowModal]    = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors,       setErrors]       = useState({});
+
+  // ── Edit / Delete state ───────────────────────────────
+  const [editingHead,   setEditingHead]   = useState(null); // null = add mode, object = edit mode
+  const [deletingId,    setDeletingId]    = useState(null); // headId being deleted
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [headToDelete,  setHeadToDelete]  = useState(null);
 
   // ── Form fields ───────────────────────────────────────
   const [headName,       setHeadName]       = useState("");
@@ -86,11 +92,34 @@ export default function HeadsPage() {
     setHeadName(""); setEmail(""); setPassword(""); setPhone("");
     setJoiningDate(""); setDesignation(""); setSelectedSchool(null);
     setHeadImage(null); setPreviewUrl(null); setErrors({});
-    setShowPass(false);
+    setShowPass(false); setEditingHead(null);
   };
 
   const openModal = () => { resetForm(); setShowModal(true); };
   const closeModal = () => { setShowModal(false); resetForm(); };
+
+  // ── Open Edit Modal ───────────────────────────────────
+  const openEditModal = (head) => {
+    setEditingHead(head);
+    setHeadName(head.name || "");
+    setEmail(head.email || "");
+    setPassword(""); // leave blank unless changing
+    setPhone(head.phone || "");
+    setJoiningDate(head.joiningDate || "");
+    setDesignation(head.designation || "");
+    const school = schools.find(s => s.schoolId === head.schoolId) || null;
+    setSelectedSchool(school);
+    // Show existing image as preview
+    if (head.image?.base64) {
+      setPreviewUrl(`data:${head.image.type};base64,${head.image.base64}`);
+    } else {
+      setPreviewUrl(null);
+    }
+    setHeadImage(null);
+    setErrors({});
+    setShowPass(false);
+    setShowModal(true);
+  };
 
   // ── Validate ──────────────────────────────────────────
   const validate = () => {
@@ -100,14 +129,20 @@ export default function HeadsPage() {
     if (!email.trim())     errs.email    = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
                            errs.email    = "Invalid email format";
-    if (!password)         errs.password = "Password is required";
-    else if (password.length < 8)
-                           errs.password = "Minimum 8 characters";
+    // Password required only on Add; optional on Edit
+    if (!editingHead) {
+      if (!password)         errs.password = "Password is required";
+      else if (password.length < 8)
+                             errs.password = "Minimum 8 characters";
+    } else {
+      if (password && password.length < 8)
+                             errs.password = "Minimum 8 characters";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // ── Submit ────────────────────────────────────────────
+  // ── Submit Add ────────────────────────────────────────
   const handleSubmit = async () => {
     if (!validate()) return;
     setIsSubmitting(true);
@@ -134,6 +169,71 @@ export default function HeadsPage() {
       alert(`❌ ${msg}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ── Submit Edit ───────────────────────────────────────
+  const handleUpdate = async () => {
+    if (!validate()) return;
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("headId",      editingHead.headId);
+      formData.append("adminId",     adminID);
+      formData.append("schoolId",    selectedSchool?.schoolId    || editingHead.schoolId);
+      formData.append("schoolName",  selectedSchool?.schoolName  || editingHead.schoolName);
+      formData.append("name",        headName.trim());
+      formData.append("email",       email.trim().toLowerCase());
+      if (password) formData.append("password", password);
+      formData.append("phone",       phone || "");
+      formData.append("role",        designation || "");
+      formData.append("joiningDate", joiningDate || "");
+      formData.append("status",      editingHead.status || "active");
+      if (headImage) formData.append("image", headImage);
+
+      const res = await updateHead(formData);
+      const data = res.data;
+
+      if (data.success) {
+        setHeads((prev) =>
+          prev.map((h) => h.headId === editingHead.headId ? { ...h, ...data.data } : h)
+        );
+        closeModal();
+      } else {
+        alert(`❌ ${data.error || "Update failed"}`);
+      }
+    } catch (err) {
+      console.error("Update error:", err);
+      alert("❌ Something went wrong");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── Delete ────────────────────────────────────────────
+  const confirmDelete = (head) => {
+    setHeadToDelete(head);
+    setShowDeleteModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!headToDelete) return;
+    setDeletingId(headToDelete.headId);
+    try {
+      const res = await deleteHead(headToDelete.headId);
+      const data = res.data;
+      if (data.success) {
+        setHeads((prev) => prev.filter((h) => h.headId !== headToDelete.headId));
+      } else {
+        alert(`❌ ${data.error || "Delete failed"}`);
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("❌ Something went wrong");
+    } finally {
+      setDeletingId(null);
+      setShowDeleteModal(false);
+      setHeadToDelete(null);
     }
   };
 
@@ -245,22 +345,24 @@ export default function HeadsPage() {
                   )}
                 </div>
 
-                {/* Action Buttons */}
-<div className="flex gap-2 mt-4">
-  <button
-    onClick={() => handleEdit(head)}
-    className="flex-1 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 transition"
-  >
-    ✏️ Edit
-  </button>
-
-  <button
-    onClick={() => handleDelete(head.headId)}
-    className="flex-1 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 transition"
-  >
-    🗑️ Delete
-  </button>
-</div>
+                {/* ── Edit / Delete buttons ── */}
+                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => openEditModal(head)}
+                    className="flex-1 py-1.5 rounded-lg border border-[#6C63FF] text-[#6C63FF]
+                               text-xs font-medium hover:bg-[#6C63FF10] transition-colors"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => confirmDelete(head)}
+                    disabled={deletingId === head.headId}
+                    className="flex-1 py-1.5 rounded-lg border border-red-300 text-red-500
+                               text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {deletingId === head.headId ? "Deleting…" : "🗑️ Delete"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -268,7 +370,7 @@ export default function HeadsPage() {
       </div>
 
       {/* ══════════════════════════════════════════
-          MODAL
+          ADD / EDIT MODAL
       ══════════════════════════════════════════ */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
@@ -279,7 +381,9 @@ export default function HeadsPage() {
               className="px-6 py-4 flex items-center justify-between rounded-t-2xl"
               style={{ background: "linear-gradient(to right, #6C63FF, #8E85FF)" }}
             >
-              <h2 className="text-white text-lg font-semibold">Add New Head</h2>
+              <h2 className="text-white text-lg font-semibold">
+                {editingHead ? "Edit Head" : "Add New Head"}
+              </h2>
               <button
                 onClick={closeModal}
                 className="text-white hover:opacity-70 text-2xl leading-none"
@@ -376,12 +480,13 @@ export default function HeadsPage() {
               {/* Password */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Password <span className="text-red-500">*</span>
+                  Password {!editingHead && <span className="text-red-500">*</span>}
+                  {editingHead && <span className="text-gray-400 text-xs font-normal ml-1">(leave blank to keep current)</span>}
                 </label>
                 <div className="relative">
                   <input
                     type={showPass ? "text" : "password"}
-                    placeholder="Min 8 characters"
+                    placeholder={editingHead ? "Enter new password to change" : "Min 8 characters"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={`${inputCls("password")} pr-10`}
@@ -442,7 +547,7 @@ export default function HeadsPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleSubmit}
+                  onClick={editingHead ? handleUpdate : handleSubmit}
                   disabled={isSubmitting}
                   className={`flex-1 py-2.5 rounded-lg text-white text-sm font-semibold transition-all
                     ${isSubmitting
@@ -455,15 +560,50 @@ export default function HeadsPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                       </svg>
-                      Saving…
+                      {editingHead ? "Updating…" : "Saving…"}
                     </span>
-                  ) : "Add Head"}
+                  ) : (editingHead ? "Update Head" : "Add Head")}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════
+          DELETE CONFIRM MODAL
+      ══════════════════════════════════════════ */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <div className="text-center mb-5">
+              <span className="text-5xl">🗑️</span>
+              <h3 className="text-lg font-semibold text-gray-800 mt-3">Delete Head?</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Are you sure you want to delete <strong>{headToDelete?.name}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowDeleteModal(false); setHeadToDelete(null); }}
+                className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600
+                           text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={!!deletingId}
+                className="flex-1 py-2.5 rounded-lg bg-red-500 text-white text-sm font-semibold
+                           hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deletingId ? "Deleting…" : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
