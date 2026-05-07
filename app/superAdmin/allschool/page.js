@@ -64,6 +64,7 @@ fetchhead()
       establishedYear: school.establishedYear,
       schoolType: school.schoolType,
       facilities: school.facilities || {},
+      status: school.status || "active",
     });
     setEditImage(null);
     setEditModal(true);
@@ -86,6 +87,8 @@ fetchhead()
       form.append("address", editData.address);
       form.append("establishedYear", editData.establishedYear);
       form.append("schoolType", editData.schoolType);
+      form.append("status", editData.status);
+
       form.append("facilities", JSON.stringify(editData.facilities));
 
       if (editImage) {
@@ -95,6 +98,8 @@ fetchhead()
       const res = await updateSchool(form);
 
       if (res.data.success) {
+         alert("✅ School updated successfully!");
+
         // ✅ Local state update
         setSchools(schools.map(s =>
           s.schoolId === editData.schoolId ? res.data.data : s
@@ -187,7 +192,7 @@ fetchhead()
                 )}
 
                 <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{school.displayName || school.schoolName}</h3>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{school.schoolName}</h3>
                   <p className="text-gray-600 text-sm mb-2">{school.address}</p>
                   <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{school.schoolType}</span>
                   {school.establishedYear && (
@@ -250,8 +255,17 @@ fetchhead()
                   <option value="">Select type</option>
                   <option value="public">Public School</option>
                   <option value="private">Private School</option>
-                  <option value="international">International School</option>
-                  <option value="boarding">Boarding School</option>
+                 
+                </select>
+              </div>
+               <div>
+                <label className="text-sm font-medium text-gray-700">Status</label>
+                <select style={inputStyle} value={editData.status}
+                  onChange={(e) => setEditData({ ...editData, status: e.target.value })}>
+                  <option value="">Select status</option>
+                  <option value="active">active</option>
+                  <option value="inactive">inactive</option>
+                  
                 </select>
               </div>
               <div>

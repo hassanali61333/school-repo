@@ -46,4 +46,12 @@ export const getAllHeads = (adminId) =>
   api.get(`/addhead?adminId=${adminId}`,);
 
 export const getheadbyid = (schoolId) =>
-  api.get(`/by-school?schoolId=${schoolId}`);; 
+  api.get(`/by-school?schoolId=${schoolId}`);
+
+export const deleteHead = (headId) =>
+  api.delete(`/addhead?headId=${headId}`);
+
+export const updateHead = (data) =>
+  api.put("/addhead", data, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });

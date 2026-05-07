@@ -95,6 +95,7 @@ export default function SchoolRegistrationForm() {
     establishedYear: '',
     schoolType: '',
     imageName: '',
+    status: '',
     facilities: {
       library: false,
       sportsComplex: false,
@@ -177,6 +178,8 @@ const [imageFile, setImageFile] = useState(null);
     data.append("schoolType", formData.schoolType);
     data.append("adminId", adminID);
     data.append("displayName",formData.displayName)
+    data.append("status",formData.status)
+
 data.append("facilities", JSON.stringify(formData.facilities)); 
     // ✅ IMAGE FILE
     if (imageFile) {
@@ -295,8 +298,7 @@ router.push("/superAdmin/allschool")
                       <option value="">Select type</option>
                       <option value="public">Public School</option>
                       <option value="private">Private School</option>
-                      <option value="international">International School</option>
-                      <option value="boarding">Boarding School</option>
+                    
                     </select>
                   </div>
                 <div>
@@ -313,13 +315,22 @@ router.push("/superAdmin/allschool")
 </div>
                 
 
-                    <InputField
-                    label="School ID (Optional - Auto-generated)"
-                    name="schoolId"
-                    value={formData.schoolId}
-                    onChange={handleChange}
-                    placeholder="Leave empty to auto-generate"
-                  />
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Status
+  </label>
+
+  <select
+    name="status"
+    value={formData.status}
+    onChange={handleChange}
+    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="">Select Status</option>
+    <option value="active">Active</option>
+    <option value="inactive">Inactive</option>
+  </select>
+</div>
                 </div>
               </div>
 

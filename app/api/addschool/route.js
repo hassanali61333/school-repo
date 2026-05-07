@@ -15,7 +15,7 @@ export async function POST(req) {
     const establishedYear = form.get("establishedYear");
     const schoolType = form.get("schoolType");
     const adminId = form.get("adminId");
-
+   const status = form.get("status") || "active";
     const imageFile = form.get("image"); // 📁 FILE
 
     // optional JSON string (if you send facilities as string)
@@ -81,7 +81,7 @@ export async function POST(req) {
       adminId,
       facilities,
       image: imageData, // ✅ stored image
-      status: "active",
+      status,
       createdAt: new Date().toISOString(),
     };
 
@@ -188,6 +188,7 @@ export async function PUT(req) {
     const establishedYear = form.get("establishedYear");
     const schoolType = form.get("schoolType");
     const imageFile = form.get("image");
+    const status = form.get("status");
 
     let facilities = form.get("facilities");
     try {
@@ -243,6 +244,7 @@ export async function PUT(req) {
       facilities,
       image: imageData,
       updatedAt: new Date().toISOString(),
+      status: status || schoolDoc.data().status,
     };
 
     await schoolRef.update(updatedSchool);

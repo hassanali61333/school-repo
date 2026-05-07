@@ -244,6 +244,23 @@ export default function HeadsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Action Buttons */}
+<div className="flex gap-2 mt-4">
+  <button
+    onClick={() => handleEdit(head)}
+    className="flex-1 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 transition"
+  >
+    ✏️ Edit
+  </button>
+
+  <button
+    onClick={() => handleDelete(head.headId)}
+    className="flex-1 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 transition"
+  >
+    🗑️ Delete
+  </button>
+</div>
               </div>
             ))}
           </div>
