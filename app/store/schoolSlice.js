@@ -4,6 +4,7 @@ const initialState = {
   schools: [],
   loading: false,
   hasSchools: false,
+  schoolID:null
 };
 
 const schoolSlice = createSlice({
@@ -31,8 +32,12 @@ const schoolSlice = createSlice({
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
+
+    setSchoolID:(state,action)=>{
+      state.schoolID=action.payload;
+    }
   },
 });
 
-export const { setSchools, addSchool, updateSchool, deleteSchool, setLoading } = schoolSlice.actions;
+export const { setSchools, addSchool, updateSchool, deleteSchool, setLoading, setSchoolID } = schoolSlice.actions;
 export default schoolSlice.reducer;

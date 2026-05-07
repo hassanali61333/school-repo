@@ -44,3 +44,6 @@ export const addSchoolHead = (data) => api.post("/addhead", data, { headers: {
     }},);
 export const getAllHeads = (adminId) =>
   api.get(`/addhead?adminId=${adminId}`,);
+
+export const getheadbyid = (schoolId) =>
+  api.get(`/by-school?schoolId=${schoolId}`);; 

@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-import { getAllSchools, deleteSchool, updateSchool } from '@/app/services/schoolService';
+import { getAllSchools, deleteSchool, updateSchool ,getheadbyid} from '@/app/services/schoolService';
 import { useDispatch } from 'react-redux';
 import { deleteSchool as deleteSchoolRedux, updateSchool as updateSchoolRedux } from '@/app/store/schoolSlice';
 
@@ -11,12 +11,32 @@ export default function AllSchools() {
   const [error, setError] = useState(null);
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [head, sethead] = useState(null);
+
 
   // ✅ Edit states
   const [editModal, setEditModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [editImage, setEditImage] = useState(null);
   const [updating, setUpdating] = useState(false);
+  
+
+
+const fetchhead =async()=>{
+  try{
+const res = await getheadbyid(selectedSchool?.schoolId)
+sethead(res.data.data)
+console.log("head by school id",res)
+  }
+  catch (err) {
+alert("error check console")
+console.log(err.message)
+  }
+}
+
+useEffect(()=>{
+fetchhead()
+},[selectedSchool?.schoolId])
 
   useEffect(() => { fetchSchools(); }, []);
   const fetchSchools = async () => {
@@ -24,6 +44,7 @@ export default function AllSchools() {
       setLoading(true);
       const response = await getAllSchools();
       setSchools(response.data.data);
+      sethead(response.data.data)
       setError(null);
     } catch (err) {
       setError('Failed to fetch schools');
@@ -132,6 +153,8 @@ export default function AllSchools() {
       <p className="mt-4 text-gray-600">Loading schools...</p>
     </div>
   );
+
+  console.log("schools data", selectedSchool);
 
   if (error) return (
     <div className="text-center py-12">
@@ -303,7 +326,25 @@ export default function AllSchools() {
                   <div><span className="text-sm text-gray-500">Address:</span><p>{selectedSchool.address}</p></div>
                   <div><span className="text-sm text-gray-500">Established:</span><p>{selectedSchool.establishedYear}</p></div>
                   <div><span className="text-sm text-gray-500">School Type:</span><p>{selectedSchool.schoolType}</p></div>
+                <div className="text-sm text-gray-500"><p>Head Information</p></div>
+                {head? <div><p>  <span className='text-[rgb(0,32,194)] text-[16px]'>Name</span>  :{head.name}</p>
+                <p> <span className='text-[rgb(0,32,194)] text-[16px]'>E-mail</span> :{head.email}</p>
+                <p> <span className='text-[rgb(0,32,194)] text-[16px]'>Phone</span> :{head.phone}</p>
+          
+
+                </div> 
+                :
+
+<p className='text-[rgb(255,1,1)]'> ✗not head assign</p>
+
+}
+              
                 </div>
+                 
+
+
+
+                
                 <div>
                   <h3 className="text-lg font-semibold mb-3">Facilities</h3>
                   <div className="space-y-2">
