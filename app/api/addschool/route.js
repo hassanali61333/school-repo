@@ -104,10 +104,13 @@ export async function POST(req) {
 
 //=================================================get school==================================================
 
-export async function GET() {
-  try {
-    const snapshot = await db.collection("Schools").get();
+export async function GET(req) {
+  const  {searchParams }= new URL(req.url);
+    const adminId = searchParams.get("adminId");
 
+  try {
+    const snapshot = await db.collection("Schools").where("adminId", "==", adminId).get();
+console.log(snapshot.docs);
     const schools = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),

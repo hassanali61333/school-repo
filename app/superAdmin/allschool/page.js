@@ -1,8 +1,9 @@
 "use client"
 import React, { useState, useEffect } from 'react';
 import { getAllSchools, deleteSchool, updateSchool ,getheadbyid} from '@/app/services/schoolService';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { deleteSchool as deleteSchoolRedux, updateSchool as updateSchoolRedux } from '@/app/store/schoolSlice';
+import { setAdminID } from '@/app/store/userSlice';
 
 export default function AllSchools() {
   const dispatch = useDispatch();
@@ -38,20 +39,32 @@ useEffect(()=>{
 fetchhead()
 },[selectedSchool?.schoolId])
 
+ useEffect(() => {
+    const admin   = localStorage.getItem("LoginAdmin");
+    const adminId = localStorage.getItem("AdminID");
+    if (admin && adminId) dispatch(setAdminID(adminId));
+  }, [dispatch]);
+
+  const adminID = useSelector((s) => s.users.adminID);
+  
+     
+ 
   useEffect(() => { fetchSchools(); }, []);
-  const fetchSchools = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllSchools();
-      setSchools(response.data.data);
-      sethead(response.data.data)
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch schools');
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchSchools = async () => {
+  if (!adminID) return; // ✅ important
+
+  try {
+    setLoading(true);
+
+    const response = await getAllSchools(adminID);
+
+    setSchools(response.data.data);
+  } catch (err) {
+    console.log(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ✅ Edit modal open
   const openEditModal = (e, school) => {

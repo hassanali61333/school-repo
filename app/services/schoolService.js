@@ -12,8 +12,8 @@ export const loginAPI = (data) => {
   return api.post("/login", data);
 }
 
-export const getAllSchools = () => {
-  return api.get("/addschool");
+export const getAllSchools = (adminId) => {
+  return api.get(`/addschool?adminId=${adminId}`);
 };
 
 export const addSchool = (data) => {
