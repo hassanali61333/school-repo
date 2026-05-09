@@ -115,7 +115,7 @@ console.log(snapshot.docs);
       id: doc.id,
       ...doc.data(),
     }));
-
+console.log(schools);
     return NextResponse.json({
       success: true,
       data: schools,

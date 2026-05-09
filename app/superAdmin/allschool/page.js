@@ -49,7 +49,12 @@ fetchhead()
   
      
  
-  useEffect(() => { fetchSchools(); }, []);
+  useEffect(() => { 
+    if(!adminID){
+    return;
+    }
+    fetchSchools();
+   }, [adminID]);
 const fetchSchools = async () => {
   if (!adminID) return; // ✅ important
 

@@ -77,7 +77,7 @@ console.log("hassan")
     });
 
     alert(res.data.message);
-    router.push("/admin/login");
+    router.push("/login");
 
   } catch (error) {
     setErrors({
@@ -273,7 +273,7 @@ console.log("hassan")
             type="submit"
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            onClick={()=>router.push("/login")}
+          
           >
             {loading ? (
               <div className="flex items-center justify-center">

@@ -2,8 +2,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { addSchool } from "../services/schoolService";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { getAllSchools } from "../services/schoolService";
+import { setAdminID } from "../store/userSlice";
+
 const statCards = [
   { label: "Total Schools", key: "totalSchools", icon: "🏫", color: "#3b5bdb" },
   { label: "Total Students", key: "totalStudents", icon: "👨‍🎓", color: "#0ca678" },
@@ -20,17 +22,29 @@ export default function SuperAdminDashboard() {
 
   const [school, setSchool] = useState([]);
   const [loadingSchools, setLoadingSchools] = useState(false); // ← added
-
+const dispatch = useDispatch();
 console.log("hassan")
 
-  useEffect(()=>{
-          fetchschool()
-  },[])
 
+
+    useEffect(() => {
+      const admin   = localStorage.getItem("LoginAdmin");
+      const adminId = localStorage.getItem("AdminID");
+      if (admin && adminId) dispatch(setAdminID(adminId));
+    }, [dispatch]);
+  
+    const adminID = useSelector((s) => s.users.adminID);
+
+      useEffect(()=>{
+    if(!adminID){
+      return;
+    }
+          fetchschool()
+  },[adminID])
   const fetchschool = async()=>{
-    setLoadingSchools(true); // ← added
+    setLoadingSchools(true); 
     try{
-      const resposese= await getAllSchools()
+      const resposese= await getAllSchools(adminID)
       setSchool(resposese.data.data)
       settotalSchools(resposese.data.data.length)
       console.log("all school",resposese.data.data.length)

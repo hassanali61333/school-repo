@@ -70,8 +70,9 @@ export default function HeadsPage() {
   const fetchSchools = async () => {
     setLoadingSchools(true);
     try {
-      const res = await getAllSchools();
+      const res = await getAllSchools(adminID);
       setSchools(res.data.data || []);
+      console.log(res.data.data);
     } catch (err) {
       console.error("Schools load error:", err);
     } finally {
