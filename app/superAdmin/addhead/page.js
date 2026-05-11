@@ -80,6 +80,7 @@ export default function HeadsPage() {
     }
   };
 
+  console.log("hasan")
   // ── Image ─────────────────────────────────────────────
   const handleImageChange = (e) => {
     const file = e.target.files[0];
