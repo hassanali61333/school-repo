@@ -12,7 +12,7 @@ export async function GET(req) {
     // Normalize
     schoolId = schoolId.trim().toLowerCase();
 
-    const snap = await db.collection("head").get();
+    const snap = await db.collection("users").get();
 
     const matched = snap.docs
       .map(doc => doc.data())

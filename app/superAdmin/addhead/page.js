@@ -160,6 +160,8 @@ export default function HeadsPage() {
         joiningDate: joiningDate || "",
       };
 
+    
+
       const res = await addSchoolHead(payload);
       if (res.data.success) {
         setHeads((prev) => [{ id: res.data.data.headId, ...res.data.data }, ...prev]);

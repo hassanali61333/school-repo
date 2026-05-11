@@ -6,16 +6,16 @@ export async function POST(req) {
   try {
     const form = await req.formData();
 
-    const headName   = form.get("name");
-    const email      = form.get("email")?.toLowerCase().trim();
-    const password   = form.get("password");
-    const schoolId   = form.get("schoolId");
-    const schoolName = form.get("schoolName");
-    const adminId    = form.get("adminId");
-    const phone      = form.get("phone");
+    const headName    = form.get("name");
+    const email       = form.get("email")?.toLowerCase().trim();
+    const password    = form.get("password");
+    const schoolId    = form.get("schoolId");
+    const schoolName  = form.get("schoolName");
+    const adminId     = form.get("adminId");
+    const phone       = form.get("phone");
     const joiningDate = form.get("joiningDate");
     const designation = form.get("role");
-    const imageFile  = form.get("image");
+    const imageFile   = form.get("image");
 
     // ===== VALIDATION =====
     if (!headName || !email || !password || !schoolId || !adminId) {
@@ -40,7 +40,7 @@ export async function POST(req) {
     }
 
     // ===== EMAIL DUPLICATE CHECK across all collections =====
-    const collections = ["head", "Teacher", "students", "user"];
+    const collections = ["users", "Teacher", "students"];
     for (let col of collections) {
       const snap = await db.collection(col).where("email", "==", email).get();
       if (!snap.empty) {
@@ -53,8 +53,9 @@ export async function POST(req) {
 
     // ===== CHECK SCHOOL ALREADY HAS HEAD =====
     const existingHead = await db
-      .collection("head")
+      .collection("users")
       .where("schoolId", "==", schoolId)
+      .where("role", "==", "head")
       .get();
 
     if (!existingHead.empty) {
@@ -82,9 +83,9 @@ export async function POST(req) {
     const headId = `head-${Date.now()}`;
     const newHead = {
       headId,
-      adminId,        // ✅ from frontend
-      schoolId,       // ✅ from frontend
-      schoolName,     // ✅ from frontend
+      adminId,
+      schoolId,
+      schoolName,
       name: headName,
       email,
       password: hashedPassword,
@@ -97,7 +98,7 @@ export async function POST(req) {
       createdAt: new Date().toISOString(),
     };
 
-    await db.collection("head").doc(headId).set(newHead);
+    await db.collection("users").doc(headId).set(newHead);
 
     const { password: _, ...safeHead } = newHead;
 
@@ -133,8 +134,9 @@ export async function GET(req) {
     }
 
     const snap = await db
-      .collection("head")
+      .collection("users")
       .where("adminId", "==", adminId)
+      .where("role", "==", "head")
       .get();
 
     if (snap.empty) {
@@ -143,7 +145,7 @@ export async function GET(req) {
 
     const heads = snap.docs.map((doc) => {
       const data = doc.data();
-      const { password, ...safeData } = data; // never return password
+      const { password, ...safeData } = data;
       return safeData;
     });
 
@@ -156,16 +158,16 @@ export async function GET(req) {
 }
 
 
-//========================================== delate haed=============================================
+//========================================== delete head =============================================
 
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const head = searchParams.get("headId");
-const headId = String(head).trim();
-const headRef = db.collection("head").where("headId", "==", headId);
-const snap = await headRef.get();
+    const headId = String(head).trim();
 
+    const headRef = db.collection("users").where("headId", "==", headId).where("role", "==", "head");
+    const snap = await headRef.get();
 
     if (snap.empty) {
       return NextResponse.json(
@@ -180,15 +182,15 @@ const snap = await headRef.get();
       });
     }
 
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Delete Head Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
 
-//========================================== update head=============================================
+//========================================== update head =============================================
+
 export async function PUT(req) {
   try {
     const form = await req.formData();
@@ -205,7 +207,7 @@ export async function PUT(req) {
     const designation = form.get("role");
     const status      = form.get("status");
     const imageFile   = form.get("image");
-    console.log(imageFile)
+    console.log(imageFile);
 
     // ===== VALIDATION =====
     if (!headId) {
@@ -215,8 +217,7 @@ export async function PUT(req) {
       );
     }
 
-   
-    const headRef = db.collection("head").doc(headId);
+    const headRef = db.collection("users").doc(headId);
     const headDoc = await headRef.get();
 
     if (!headDoc.exists) {
@@ -230,7 +231,7 @@ export async function PUT(req) {
 
     // ===== EMAIL DUPLICATE CHECK =====
     if (email && email !== oldData.email) {
-      const collections = ["head", "Teacher", "students", "user"];
+      const collections = ["users", "Teacher", "students"];
 
       for (let col of collections) {
         const snap = await db
@@ -260,7 +261,6 @@ export async function PUT(req) {
       imageFile.size > 0
     ) {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
-
       imageData = {
         name: imageFile.name,
         type: imageFile.type,
@@ -278,7 +278,6 @@ export async function PUT(req) {
           { status: 400 }
         );
       }
-
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
@@ -286,15 +285,15 @@ export async function PUT(req) {
     const updatedHead = {
       ...oldData,
 
-      adminId: adminId || oldData.adminId,
-      schoolId: schoolId || oldData.schoolId,
+      adminId:    adminId    || oldData.adminId,
+      schoolId:   schoolId   || oldData.schoolId,
       schoolName: schoolName || oldData.schoolName,
 
-      name: headName || oldData.name,
-      email: email || oldData.email,
-      password: hashedPassword,
+      name:       headName   || oldData.name,
+      email:      email      || oldData.email,
+      password:   hashedPassword,
 
-      phone: phone || oldData.phone,
+      phone:       phone       || oldData.phone,
       joiningDate: joiningDate || oldData.joiningDate,
 
       designation: designation || oldData.designation,
@@ -320,11 +319,9 @@ export async function PUT(req) {
 
   } catch (error) {
     console.error("Update Head Error:", error);
-
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
     );
   }
 }
-    
