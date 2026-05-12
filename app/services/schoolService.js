@@ -15,7 +15,6 @@ export const loginAPI = (data) => {
 export const getAllSchools = (adminId) => {
   return api.get(`/addschool?adminId=${adminId}`);
 };
-
 export const addSchool = (data) => {
   return api.post("/addschool", data, {
     headers: {
@@ -23,6 +22,9 @@ export const addSchool = (data) => {
     },
   });
 };
+export const getSchoolByHeadId = (schoolId) => {
+  return api.get(`/sch-by-headId?schoolId=${schoolId}`);
+}
 
 
 
@@ -46,7 +48,7 @@ export const getAllHeads = (adminId) =>
   api.get(`/addhead?adminId=${adminId}`,);
 
 export const getheadbyid = (schoolId) =>
-  api.get(`/by-school?schoolId=${schoolId}`);
+  api.get(`/head-by-schId?schoolId=${schoolId}`);
 
 export const deleteHead = (headId) =>
   api.delete(`/addhead?headId=${headId}`);
@@ -55,3 +57,16 @@ export const updateHead = (data) =>
   api.put("/addhead", data, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+
+export const addstaff = (data) =>
+  api.post("/staff", data);
+
+
+export const getstaff = (schoolId) =>
+  api.get(`/staff?schoolId=${schoolId}`);
+
+
+export const deletestaff = (docId) =>
+  api.delete(`/staff?docId=${docId}`);
+
+
