@@ -72,36 +72,65 @@ const handleSubmit = async (e) => {
     });
 
     console.log("Login response:", res.data);
-    router.push("/superAdmin")
-console.log("res",res.data.user.id)
 
-  dispatch(setLoginAdmin(res.data.user)); 
-  dispatch(setAdminID(res.data.user.id));
+    const user = res.data.user;
 
-      localStorage.setItem("LoginAdmin", JSON.stringify(res.data.user));
-    localStorage.setItem("AdminID", res.data.user.id);
+    // redux
+    dispatch(setLoginAdmin(user));
+    dispatch(setAdminID(user.id));
 
+    // local storage
+    localStorage.setItem(
+      "LoginAdmin",
+      JSON.stringify(user)
+    );
+
+    localStorage.setItem("AdminID", user.id);
+
+    // remember email
     if (rememberMe) {
-      localStorage.setItem("adminEmail", formData.email);
+      localStorage.setItem(
+        "adminEmail",
+        formData.email
+      );
     } else {
       localStorage.removeItem("adminEmail");
     }
 
-    // Store user session
-    sessionStorage.setItem("adminUser", JSON.stringify(res.data.user));
+    // session storage
+    sessionStorage.setItem(
+      "adminUser",
+      JSON.stringify(user)
+    );
 
-    // redirect (example)
+    // ✅ role based redirect
+    if (user.role === "admin") {
+      router.push("/superAdmin");
+    } else if (user.role === "head") {
+      router.push("/schoolhead");
+    } else if (user.role === "accountant") {
+      router.push("/accountant");
+    } else {
+      
+      router.push("/");
+    }
 
   } catch (error) {
     const status = error.response?.status;
 
     if (status === 404) {
-      setErrors({ submit: "No account found with this email address" });
+      setErrors({
+        submit: "No account found with this email address",
+      });
     } else if (status === 401) {
-      setErrors({ submit: "Incorrect password. Please try again." });
+      setErrors({
+        submit: "Incorrect password. Please try again.",
+      });
     } else {
       setErrors({
-        submit: error.response?.data?.message || "Login failed",
+        submit:
+          error.response?.data?.message ||
+          "Login failed",
       });
     }
 
