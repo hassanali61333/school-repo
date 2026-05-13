@@ -22,9 +22,10 @@ export const addSchool = (data) => {
     },
   });
 };
-export const getSchoolByHeadId = (schoolId) => {
-  return api.get(`/sch-by-headId?schoolId=${schoolId}`);
+export const getSchoolById = (schoolId) => {
+  return api.get(`/sch-by-schId?schoolId=${schoolId}`);
 }
+
 
 
 

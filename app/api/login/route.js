@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebaseAdmin";
+import admin, { db } from "@/lib/firebaseAdmin";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 export async function POST(req) {
@@ -61,6 +61,9 @@ export async function POST(req) {
         id: userDoc.id,
         name: user.name,
         email: user.email,
+         schoolId: user.schoolId || null,
+    schoolName: user.schoolName || null,
+    adminId: user.adminId || null,
         role: user.role,
       },
     });

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { addstaff ,getstaff,deletestaff} from '@/app/services/schoolService';
+import { setAdminID, setLoginAdmin } from '@/app/store/userSlice';
+import { useDispatch, useSelector } from 'react-redux';
 
 /* ── role options ─────────────────────────────────────── */
 const ROLES = [
@@ -30,6 +32,10 @@ function formatCNIC(text) {
    MAIN PAGE
 ══════════════════════════════════════════════════════ */
 export default function StaffPage() {
+
+
+const dispatch = useDispatch();
+
   const [staffList,   setStaffList]   = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [saving,      setSaving]      = useState(false);
@@ -42,12 +48,28 @@ export default function StaffPage() {
   const [toast,       setToast]       = useState(null); // { type:'success'|'error', msg }
   const [search,      setSearch]      = useState('');
     
+ useEffect(() => {
+      const storedUser = localStorage.getItem("LoginAdmin");
+  
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+  
+        dispatch(setLoginAdmin(user));
+        dispatch(setAdminID(user.adminId));
+      }
+    }, [dispatch]);
+    const admin = useSelector((state) => state.users.loginAdmin);
+    console.log("Admin in StaffPage:", admin);
+   
 
-  /* session values – set at login in a real app */
-  const schoolId  = typeof window !== 'undefined' ? (sessionStorage.getItem('schoolId')  || 'SCHOOL_001') : '';
-  const adminId   = typeof window !== 'undefined' ? (sessionStorage.getItem('adminId')   || 'ADMIN_001')  : '';
-  const headId    = typeof window !== 'undefined' ? (sessionStorage.getItem('headId')    || '')           : '';
-  const schoolName= typeof window !== 'undefined' ? (sessionStorage.getItem('schoolName')|| 'Demo School'): '';
+  const schoolId  = admin?.schoolId || '';
+  const adminId   = admin?.adminId || '';
+  const headId    = admin?.id || '';
+  const schoolName= admin?.schoolName || 'Demo School';
+
+ 
+ 
+
 
   /* ── toast helper ── */
   const showToast = (type, msg) => {
@@ -70,9 +92,11 @@ const fetchStaff = async () => {
     } 
   };
 
-  useEffect(() => {
+useEffect(() => {
+  if (schoolId) {
     fetchStaff();
-  }, []);
+  }
+}, [admin?.schoolId]);
 
 
   
@@ -108,7 +132,7 @@ const handleSave = async () => {
     });
 
     showToast("success", "Staff registered successfully!");
-
+fetchStaff()
     // reset form
     setForm(EMPTY_FORM);
     setView("list");
