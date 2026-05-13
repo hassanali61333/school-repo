@@ -73,3 +73,55 @@ export const deletestaff = (docId) =>
 
 export const updatestaff = (data) =>
   api.put("/staff", data);
+
+
+//===============================================teacher api================================================
+
+export const addTeacher = (data) => {
+  return api.post("/teacher", data);
+};
+
+
+export const getTeachers = (schoolId) => {
+  return api.get(`/teacher?schoolId=${schoolId}`);
+};
+
+
+export const updateTeacher = (data) => {
+  return api.put("/teacher", data);
+};
+
+
+export const deleteTeacher = (docId) => {
+  return api.delete(`/teacher?docId=${docId}`);
+};
+
+
+//=====================================================students api================================================
+
+
+
+// ---------------- GET ALL STUDENTS ----------------
+export const getAllStudents = (schoolId) => {
+  return api.get(`/students?schoolId=${schoolId}`);
+};
+
+// ---------------- GET STUDENT BY ID ----------------
+export const getStudentById = (id) => {
+  return api.get(`/studentbyId?id=${id}`);
+};
+
+// ---------------- CREATE STUDENT ----------------
+export const createStudent = (data) => {
+  return api.post("/students", data);
+};
+
+// ---------------- UPDATE STUDENT ----------------
+export const updateStudent = (id, data) => {
+  return api.put(`/studentbyId?id=${id}`, data);
+};
+
+// ---------------- DELETE STUDENT ----------------
+export const deleteStudent = (id) => {
+  return api.delete(`/studentbyId?id=${id}`);
+};

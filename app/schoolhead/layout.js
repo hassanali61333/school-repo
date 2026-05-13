@@ -12,6 +12,10 @@ const navItems = [
   { label: "Notifications", href: "/schoolhead/notifications", icon: "🔔" },
   { label: "Study Material", href: "/schoolhead/material", icon: "📚" },
   { label: "Reports", href: "/schoolhead/reports", icon: "📊" },
+  { label: "admission", href: "/schoolhead/admission", icon: "📊" },
+  { label: "contact", href: "/schoolhead/contact", icon: "📊" },
+
+
 ];
 
 export default function SchoolHeadLayout({ children }) {
