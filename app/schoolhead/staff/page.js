@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { addstaff ,getstaff,deletestaff} from '@/app/services/schoolService';
+import { addstaff ,getstaff,deletestaff,updatestaff} from '@/app/services/schoolService';
 import { setAdminID, setLoginAdmin } from '@/app/store/userSlice';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -76,6 +76,61 @@ const dispatch = useDispatch();
     setToast({ type, msg });
     setTimeout(() => setToast(null), 3500);
   };
+
+
+
+  const openEdit = (member) => {
+  setEditTarget(member);
+
+  setForm({
+    docId: member.docId,
+    name: member.fullName || '',
+    phone: member.phoneNumber || '',
+    cnic: member.cnic || '',
+    salary: member.salary || '',
+    address: member.address || '',
+    joiningDate: member.joiningDate || '',
+    email: member.email || '',
+    designation: member.designation || '',
+    status: member.status || 'active',
+  });
+
+  setView('edit');
+};
+
+
+
+const handleUpdate = async () => {
+  setSaving(true);
+
+  try {
+    await updatestaff({
+      docId: form.docId,
+      name: form.name,
+      phone: form.phone,
+      cnic: form.cnic,
+      salary: form.salary,
+      address: form.address,
+      email: form.email,
+      designation: form.designation,
+      joiningDate: form.joiningDate,
+      status: form.status,
+    });
+
+    showToast("success", "Staff updated successfully");
+
+    fetchStaff();
+
+    setView("list");
+    setEditTarget(null);
+    setForm(EMPTY_FORM);
+
+  } catch (e) {
+    showToast("error", e.response?.data?.error || "Update failed");
+  } finally {
+    setSaving(false);
+  }
+};
 
 
 const fetchStaff = async () => {
@@ -272,11 +327,13 @@ const handleDelete = async (docId) => {
 
                     {/* Actions */}
                     <div className="flex gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => openEdit(member)}
-                        className="w-9 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition"
-                        title="Edit"
-                      >✏️</button>
+                     <button
+  onClick={() => openEdit(member)}
+  className="w-9 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition"
+  title="Edit"
+>
+  ✏️
+</button>
                       <button
                         onClick={() => handleDelete(member?.docId)}
                         disabled={deleting === (member.docId || member.id)}
@@ -401,7 +458,7 @@ const handleDelete = async (docId) => {
 
               {/* Submit */}
               <button
-                onClick={handleSave}
+            onClick={view === 'add' ? handleSave : handleUpdate}
                 disabled={saving}
                 className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 transition mt-2"
               >

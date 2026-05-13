@@ -71,3 +71,5 @@ export const deletestaff = (docId) =>
   api.delete(`/staff?docId=${docId}`);
 
 
+export const updatestaff = (data) =>
+  api.put("/staff", data);
