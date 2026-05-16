@@ -124,4 +124,55 @@ export const updateStudent = (id, data) => {
 // ---------------- DELETE STUDENT ----------------
 export const deleteStudent = (id) => {
   return api.delete(`/studentbyId?id=${id}`);
+}
+
+
+
+//=======================================================school timing api================================================
+
+export const createSchoolTiming = (data) => {
+  return api.post("/schTiming", data);
+};
+
+export const updateSchoolTiming = (data) => {
+  return api.post("/schTiming", data); // same endpoint (create/update merge)
+};
+
+// GET
+export const getSchoolTiming = (schoolId) => {
+  return api.get(`/schTiming?schoolId=${schoolId}`);
+};
+
+// DELETE
+export const deleteSchoolTiming = (schoolId) => {
+  return api.delete(`/schTiming?schoolId=${schoolId}`);
+};
+
+
+//=====================================================class timetable api================================================
+
+
+//=====================================================class timetable api================================================
+
+// ---------------- CREATE / UPDATE SLOT ----------------
+export const createClassTime = (data) => {
+  return api.post("/classtimetable", data);
+};
+
+// ---------------- GET TIMETABLE ----------------
+export const getClassTime = (schoolId, className, section) => {
+  return api.get(
+    `/classtimetable?schoolId=${schoolId}&class=${className}&section=${section}`
+  );
+};
+
+// ---------------- DELETE SLOT ----------------
+export const deleteClassTime = (slotId) => {
+  return api.delete(`/classtimetable?slotId=${slotId}`);
+};
+
+
+
+export const updateClassTime = (slotId, data) => {
+  return api.put('/classtimetable', { slotId, ...data });
 };

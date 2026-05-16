@@ -76,6 +76,7 @@ export default function TeacherPage() {
     setLoadingList(true);
     try {
       const res = await getTeachers(schoolId);
+      console.log("Fetched teachers:", res.data.data);
       setTeacherList(res.data.data || []);
     } catch {
       showToast('error', 'Failed to load teacher list');

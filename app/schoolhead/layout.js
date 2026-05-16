@@ -5,15 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 const navItems = [
   { label: "Dashboard", href: "/schoolhead", icon: "⊞" },
   { label: "Students", href: "/schoolhead/students", icon: "👨‍🎓" },
-  { label: "Attendance", href: "/schoolhead/attendance", icon: "📋" },
-  { label: "Results", href: "/schoolhead/result", icon: "📝" },
+
+  
   { label: "Teachers", href: "/schoolhead/teachers", icon: "👨‍🏫" },
   { label: "Staff", href: "/schoolhead/staff", icon: "👷" },
-  { label: "Notifications", href: "/schoolhead/notifications", icon: "🔔" },
+ 
   { label: "Study Material", href: "/schoolhead/material", icon: "📚" },
   { label: "Reports", href: "/schoolhead/reports", icon: "📊" },
   { label: "admission", href: "/schoolhead/admission", icon: "📊" },
   { label: "contact", href: "/schoolhead/contact", icon: "📊" },
+  { label: "School Timing", href: "/schoolhead/schTiming", icon: "📊" },
+  { label: "class Timing", href: "/schoolhead/classstime", icon: "📊" },
+
+
 
 
 ];
