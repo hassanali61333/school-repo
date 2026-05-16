@@ -276,11 +276,12 @@ export default function ClassTimePage() {
       const response = await deleteClassTime(slot.slotId || slot.id);
       console.log("Delete response:", response);
       
-      if (response?.success) {
+      if (response?.data?.success) {
         showNotification('Slot deleted successfully!', 'success');
         await fetchTimetable(); // Refresh the timetable
       } else {
-        showNotification(response?.data?.error,  'error');
+        showNotification(response?.data?.error,  'error'); 
+
       }
     } catch (error) {
       console.error('Failed to delete slot:', error);
@@ -379,17 +380,7 @@ export default function ClassTimePage() {
         {/* Filters Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">School ID</label>
-              <input
-                type="text"
-                value={schoolId}
-                onChange={(e) => setSchoolId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter School ID"
-                readOnly={!!admin?.schoolId}
-              />
-            </div>
+         
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
               <input
@@ -413,8 +404,8 @@ export default function ClassTimePage() {
             <div className="flex items-end">
               <button
                 onClick={() => {
-                  if (!schoolId || !classValue || !section) {
-                    showNotification('Please enter School ID, Class, and Section first', 'error');
+                  if ( !classValue || !section) {
+                    showNotification('Please enter  Class, and Section first', 'error');
                     return;
                   }
                   resetClassTimeForm();
@@ -599,38 +590,46 @@ export default function ClassTimePage() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <input
-                  type="text"
-                  value={formSubject}
-                  onChange={(e) => setFormSubject(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  placeholder="e.g., Mathematics"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
-                <select
-                  value={formTeacherId}
-                  onChange={(e) => {
-                    const teacherId = e.target.value;
-                    const selectedTeacher = teachers.find(t => t.teacherId === teacherId);
-                    setFormTeacherId(teacherId);
-                    setFormTeacherName(selectedTeacher?.name || '');
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  required
-                >
-                  <option value="">Select Teacher</option>
-                  {teachers.map(teacher => (
-                    <option key={teacher.teacherId} value={teacher.teacherId}>
-                      {teacher.name} {teacher.primarySubject ? `- ${teacher.primarySubject}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          
+         <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
+  <select
+    value={formTeacherId}
+    onChange={(e) => {
+      const teacherId = e.target.value;
+      const selectedTeacher = teachers.find(t => t.teacherId === teacherId);
+      setFormTeacherId(teacherId);
+      setFormTeacherName(selectedTeacher?.name || '');
+      // Auto-fill subject when teacher is selected
+      if (selectedTeacher?.primarySubject) {
+        setFormSubject(selectedTeacher.primarySubject);
+      } else {
+        setFormSubject(''); // Clear subject if no primary subject
+      }
+    }}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+    required
+  >
+    <option value="">Select Teacher</option>
+    {teachers.map(teacher => (
+      <option key={teacher.teacherId} value={teacher.teacherId}>
+        {teacher.name} {teacher.primarySubject ? `- ${teacher.primarySubject}` : ''}
+      </option>
+    ))}
+  </select>
+</div>
+
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+  <input
+    type="text"
+    value={formSubject}
+    onChange={(e) => setFormSubject(e.target.value)}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+    placeholder="e.g., Mathematics"
+    required
+  />
+</div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
