@@ -4,7 +4,7 @@ import Link from "next/link";
 import { addSchool } from "../services/schoolService";
 import { useDispatch, useSelector } from "react-redux";
 import { getAllSchools } from "../services/schoolService";
-import { setAdminID } from "../store/userSlice";
+import { setAdminID, setuserId } from "../store/userSlice";
 
 const statCards = [
   { label: "Total Schools", key: "totalSchools", icon: "🏫", color: "#3b5bdb" },
@@ -28,9 +28,9 @@ console.log("hassan")
 
 
     useEffect(() => {
-      const admin   = localStorage.getItem("LoginAdmin");
-      const adminId = localStorage.getItem("AdminID");
-      if (admin && adminId) dispatch(setAdminID(adminId));
+      const admin   = localStorage.getItem("loginuser");
+      const adminId = localStorage.getItem("userId");
+      if (admin && adminId) dispatch(setuserId(adminId));
     }, [dispatch]);
   
     const adminID = useSelector((s) => s.users.adminID);

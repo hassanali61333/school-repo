@@ -4,7 +4,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux'; // ✅ Added useDispatch
-import { setAdminID } from '@/app/store/userSlice';
+import { setAdminID, setuserId } from '@/app/store/userSlice';
 import { addSchool } from '@/app/services/schoolService.js';
 
 // --- Helper Components (same as before) ---
@@ -73,18 +73,18 @@ export default function SchoolRegistrationForm() {
 
   // ✅ Load adminId from localStorage to Redux on component mount
   useEffect(() => {
-    const admin = localStorage.getItem("LoginAdmin");
-    const adminId = localStorage.getItem("AdminID");
+    const admin = localStorage.getItem("loginuser");
+    const adminId = localStorage.getItem("userId");
     
     if (admin && adminId) {
-      dispatch(setAdminID(adminId));
+      dispatch(setuserId(adminId));
       console.log("AdminID loaded to Redux:", adminId);
     }
   }, []);
   console.log("hassan")
 
   // ✅ Get adminID from Redux
-  const adminID = useSelector((state) => state.users.adminID);
+  const adminID = useSelector((state) => state.users.userId);
   console.log("AdminID from Redux:", adminID);
 
   const [formData, setFormData] = useState({

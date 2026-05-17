@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { addstaff ,getstaff,deletestaff,updatestaff} from '@/app/services/schoolService';
-import { setAdminID, setLoginAdmin } from '@/app/store/userSlice';
+import { setAdminID, setLoginAdmin, setloginuser, setuserId } from '@/app/store/userSlice';
 import { useDispatch, useSelector } from 'react-redux';
 
 /* ── role options ─────────────────────────────────────── */
@@ -49,16 +49,16 @@ const dispatch = useDispatch();
   const [search,      setSearch]      = useState('');
     
  useEffect(() => {
-      const storedUser = localStorage.getItem("LoginAdmin");
+      const storedUser = localStorage.getItem("loginuser");
   
       if (storedUser) {
         const user = JSON.parse(storedUser);
   
-        dispatch(setLoginAdmin(user));
-        dispatch(setAdminID(user.adminId));
+        dispatch(setloginuser(user));
+        dispatch(setuserId(user.id));
       }
     }, [dispatch]);
-    const admin = useSelector((state) => state.users.loginAdmin);
+    const admin = useSelector((state) => state.users.loginuser);
     console.log("Admin in StaffPage:", admin);
    
 

@@ -9,7 +9,7 @@ import {
 } from "@/app/services/schoolService";
 
 import { useDispatch, useSelector } from "react-redux";
-import { setAdminID, setLoginAdmin } from "@/app/store/userSlice";
+import { setAdminID, setLoginAdmin, setloginuser, setuserId } from "@/app/store/userSlice";
 
 export default function SchoolTimingPage() {
   const [openTime, setOpenTime] = useState("");
@@ -18,15 +18,15 @@ export default function SchoolTimingPage() {
   const [exists, setExists] = useState(false);
 
   const dispatch = useDispatch();
-  const admin = useSelector((s) => s.users.loginAdmin);
-
+  const admin = useSelector((s) => s.users.loginuser);
+console.log("Admin in SchoolTimingPage:", admin);
   useEffect(() => {
-    const stored = localStorage.getItem("LoginAdmin");
+    const stored = localStorage.getItem("loginuser");
 
     if (stored) {
       const user = JSON.parse(stored);
-      dispatch(setLoginAdmin(user));
-      dispatch(setAdminID(user.adminId));
+      dispatch(setloginuser(user));
+      dispatch(setuserId(user.id));
     }
   }, [dispatch]);
 

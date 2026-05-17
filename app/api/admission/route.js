@@ -279,24 +279,66 @@ export async function POST(request) {
   }
 }
 
-// ── Handle unsupported methods ─────────────────────────────────────────────
-export async function GET() {
-  return NextResponse.json(
-    { success: false, message: "Method not allowed" },
-    { status: 405 }
-  );
-}
+// ===========================================================get studnet=====================================
+// ── GET: Fetch all students of a school ─────────────────────────────────────────────
+export async function GET(request) {
+  try {
+    // Get schoolId from query parameters
+    const { searchParams } = new URL(request.url);
+    const schoolId = searchParams.get('schoolId');
 
-export async function PUT() {
-  return NextResponse.json(
-    { success: false, message: "Method not allowed" },
-    { status: 405 }
-  );
-}
+    // Validation
+    if (!schoolId) {
+      return NextResponse.json(
+        { success: false, message: "schoolId is required." },
+        { status: 400 }
+      );
+    }
 
-export async function DELETE() {
-  return NextResponse.json(
-    { success: false, message: "Method not allowed" },
-    { status: 405 }
-  );
+    // Build query - get all students for the school
+    const query = db.collection("students").where("schoolId", "==", schoolId);
+    
+    // Get all students (no pagination, no filters)
+    const snapshot = await query.get();
+
+    if (snapshot.empty) {
+      return NextResponse.json(
+        { 
+          success: true, 
+          students: [],
+          total: 0
+        },
+        { status: 200 }
+      );
+    }
+
+    // Format student data (remove sensitive info like password)
+    const students = [];
+    snapshot.forEach(doc => {
+      const studentData = doc.data();
+      // Remove sensitive information
+      delete studentData.password;
+      
+      students.push({
+        ...studentData,
+        id: doc.id
+      });
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        students,
+        total: students.length
+      },
+      { status: 200 }
+    );
+
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch students. Please try again." },
+      { status: 500 }
+    );
+  }
 }

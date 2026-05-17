@@ -24,7 +24,7 @@ export default function SuperAdminLayout({ children }) {
 
   const handlelogout=()=>{
     localStorage.removeItem("handlelogout");
-    localStorage.removeItem("AdminID")
+    localStorage.removeItem("loginuser")
     router.push("/login")
   }
   

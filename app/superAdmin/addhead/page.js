@@ -3,19 +3,20 @@ import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import { getAllSchools, addSchoolHead, getAllHeads, updateHead, deleteHead } from "@/app/services/schoolService";
-import { setAdminID } from "@/app/store/userSlice";
+import {  setuserId } from "@/app/store/userSlice";
 
 export default function HeadsPage() {
   const router = useRouter();
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const admin   = localStorage.getItem("LoginAdmin");
-    const adminId = localStorage.getItem("AdminID");
-    if (admin && adminId) dispatch(setAdminID(adminId));
+    const admin   = localStorage.getItem("loginuser");
+    const adminId = localStorage.getItem("userId");
+    if (admin && adminId) dispatch(setuserId(adminId));
   }, [dispatch]);
 
-  const adminID = useSelector((s) => s.users.adminID);
+  const adminID = useSelector((s) => s.users.userId);
+
 
   // ── Lists ─────────────────────────────────────────────
   const [heads,          setHeads]          = useState([]);

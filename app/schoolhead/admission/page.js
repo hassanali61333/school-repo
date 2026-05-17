@@ -1,9 +1,11 @@
 // pages/admission.js
 "use client";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createAdmission } from '@/app/services/schoolService';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useDispatch, useSelector } from 'react-redux';
+import { setloginuser, setuserId } from '@/app/store/userSlice';
 
 export default function AdmissionScreen() {
   // Loading & UI States
@@ -13,10 +15,10 @@ export default function AdmissionScreen() {
   const [successMessage, setSuccessMessage] = useState('');
   
   // Account Info
-  const [adminId, setAdminId] = useState('admin123');
-  const [headId, setHeadId] = useState('head123');
-  const [schoolId, setSchoolId] = useState('school456');
-  const [schoolName, setSchoolName] = useState('Springfield High School');
+  const [adminId, setAdminId] = useState('');
+  const [headId, setHeadId] = useState('');
+  const [schoolId, setSchoolId] = useState('');
+  const [schoolName, setSchoolName] = useState('');
   
   // Teacher Info
   const [teacherId, setTeacherId] = useState('teacher789');
@@ -64,8 +66,22 @@ export default function AdmissionScreen() {
   const [autoReminder, setAutoReminder] = useState(true);
   const [reminderDaysBefore, setReminderDaysBefore] = useState('3');
   const [notifyVia, setNotifyVia] = useState('SMS');
+const dispatch = useDispatch();
+ 
+  useEffect(() => {
+    const stored = localStorage.getItem("loginuser");
+    if (stored) {
+      const user = JSON.parse(stored);
+      dispatch(setloginuser(user));
+      dispatch(setuserId(user.id));
+      // Auto-set schoolId from admin
+      if (user.schoolId) {
+        setSchoolId(user.schoolId);
+      }
+    }
+  }, [dispatch]);
+const user = useSelector((state) => state.users.loginuser);
 
-  // Options
   const classes = ['Nursery', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   const sections = ['A', 'B', 'C'];
   const groups = ['Science', 'Commerce', 'Arts'];
@@ -179,10 +195,10 @@ export default function AdmissionScreen() {
     setLoading(true);
     
     const payload = {
-      adminId,
-      headId,
-      schoolId,
-      schoolName,
+      adminId: user.adminId,
+      headId :user.id,
+      schoolId :user.schoolId,
+      schoolName:user.schoolName,
       teacherId,
       teacherName,
       firstName,

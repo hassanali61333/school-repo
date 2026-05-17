@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loginAPI } from "../services/schoolService";
 import { useDispatch } from "react-redux";
-import { setLoginAdmin,setAdminID } from "../store/userSlice";
+import {  setloginuser, setuserId } from "../store/userSlice";
 export default function AdminLogin() {
 
   const dispatch= useDispatch()
@@ -76,16 +76,16 @@ const handleSubmit = async (e) => {
     const user = res.data.user;
 
     // redux
-    dispatch(setLoginAdmin(user));
-    dispatch(setAdminID(user.id));
+    dispatch(setloginuser(user));
+    dispatch(setuserId(user.id));
 
     // local storage
     localStorage.setItem(
-      "LoginAdmin",
+      "loginuser",
       JSON.stringify(user)
     );
 
-    localStorage.setItem("AdminID", user.id);
+    localStorage.setItem("userId", user.id);
 
     // remember email
     if (rememberMe) {

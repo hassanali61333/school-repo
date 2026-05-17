@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setAdminID, setLoginAdmin } from '@/app/store/userSlice';
+import { setAdminID, setLoginAdmin, setloginuser, setuserId } from '@/app/store/userSlice';
 import { addTeacher, getTeachers, updateTeacher, deleteTeacher } from '@/app/services/schoolService';
 
 /* ── Constants ────────────────────────────────────────── */
@@ -51,15 +51,16 @@ export default function TeacherPage() {
 
   /* ── restore admin from localStorage ── */
   useEffect(() => {
-    const stored = localStorage.getItem('LoginAdmin');
+    const stored = localStorage.getItem('loginuser');
     if (stored) {
       const user = JSON.parse(stored);
-      dispatch(setLoginAdmin(user));
-      dispatch(setAdminID(user.adminId));
+      dispatch(setloginuser(user));
+      dispatch(setuserId(user.id));
     }
   }, [dispatch]);
 
-  const admin      = useSelector((s) => s.users.loginAdmin);
+  const admin      = useSelector((s) => s.users.loginuser);
+console.log("Admin in TeacherPage:", admin);
   const schoolId   = admin?.schoolId   || '';
   const adminId    = admin?.adminId    || '';
   const headId     = admin?.id         || '';

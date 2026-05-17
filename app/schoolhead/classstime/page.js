@@ -12,7 +12,7 @@ import {
   updateSchoolTiming,
   createSchoolTiming,
 } from '@/app/services/schoolService';
-import { setAdminID, setLoginAdmin } from '@/app/store/userSlice';
+import { setAdminID, setLoginAdmin, setloginuser, setuserId } from '@/app/store/userSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -24,7 +24,7 @@ const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export default function ClassTimePage() {
   const dispatch = useDispatch();
-  const admin = useSelector((s) => s.users.loginAdmin);
+  const admin = useSelector((s) => s.users.loginuser);
 
   // ========== SEPARATE STATE VARIABLES ==========
   
@@ -67,11 +67,11 @@ export default function ClassTimePage() {
   const [timingTotalPeriods, setTimingTotalPeriods] = useState(6);
 
   useEffect(() => {
-    const stored = localStorage.getItem("LoginAdmin");
+    const stored = localStorage.getItem("loginuser");
     if (stored) {
       const user = JSON.parse(stored);
-      dispatch(setLoginAdmin(user));
-      dispatch(setAdminID(user.adminId));
+      dispatch(setloginuser(user));
+      dispatch(setuserId(user.id));
       // Auto-set schoolId from admin
       if (user.schoolId) {
         setSchoolId(user.schoolId);

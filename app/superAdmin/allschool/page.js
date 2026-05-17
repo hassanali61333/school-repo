@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getAllSchools, deleteSchool, updateSchool ,getheadbyid} from '@/app/services/schoolService';
 import { useDispatch, useSelector } from 'react-redux';
 import { deleteSchool as deleteSchoolRedux, updateSchool as updateSchoolRedux } from '@/app/store/schoolSlice';
-import { setAdminID } from '@/app/store/userSlice';
+import {  setuserId } from '@/app/store/userSlice';
 
 export default function AllSchools() {
   const dispatch = useDispatch();
@@ -40,14 +40,18 @@ fetchhead()
 },[selectedSchool?.schoolId])
 
  useEffect(() => {
-    const admin   = localStorage.getItem("LoginAdmin");
-    const adminId = localStorage.getItem("AdminID");
-    if (admin && adminId) dispatch(setAdminID(adminId));
-  }, [dispatch]);
+    const admin = localStorage.getItem("loginuser");
+    const adminId = localStorage.getItem("userId");
+    
+    if (admin && adminId) {
+      dispatch(setuserId(adminId));
+      console.log("AdminID loaded to Redux:", adminId);
+    }
+  }, []);
 
-  const adminID = useSelector((s) => s.users.adminID);
+  const adminID = useSelector((s) => s.users.userId);
   
-     
+     console.log("Admin ID in AllSchools:", adminID);
  
   useEffect(() => { 
     if(!adminID){
