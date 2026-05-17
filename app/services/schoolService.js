@@ -106,25 +106,6 @@ export const getAllStudents = (schoolId) => {
   return api.get(`/students?schoolId=${schoolId}`);
 };
 
-// ---------------- GET STUDENT BY ID ----------------
-export const getStudentById = (id) => {
-  return api.get(`/studentbyId?id=${id}`);
-};
-
-// ---------------- CREATE STUDENT ----------------
-export const createStudent = (data) => {
-  return api.post("/students", data);
-};
-
-// ---------------- UPDATE STUDENT ----------------
-export const updateStudent = (id, data) => {
-  return api.put(`/studentbyId?id=${id}`, data);
-};
-
-// ---------------- DELETE STUDENT ----------------
-export const deleteStudent = (id) => {
-  return api.delete(`/studentbyId?id=${id}`);
-}
 
 
 
@@ -147,7 +128,6 @@ export const getSchoolTiming = (schoolId) => {
 export const deleteSchoolTiming = (schoolId) => {
   return api.delete(`/schTiming?schoolId=${schoolId}`);
 };
-
 
 //=====================================================class timetable api================================================
 
@@ -175,4 +155,25 @@ export const deleteClassTime = (slotId) => {
 
 export const updateClassTime = (slotId, data) => {
   return api.put('/classtimetable', { slotId, ...data });
+};
+
+
+//======================================================admission======================================
+export const createAdmission = (data) => {
+  return api.post("/admission", data);
+};
+
+// GET ALL STUDENTS
+export const getStudents = (schoolId) => {
+  return api.get(`/admission?schoolId=${schoolId}`);
+};
+
+// GET SINGLE STUDENT
+export const getStudentById = (studentId) => {
+  return api.get(`/admission?studentId=${studentId}`);
+};
+
+// UPDATE STUDENT
+export const updateStudent = (studentId, data) => {
+  return api.put(`/admission?studentId=${studentId}`, data);
 };

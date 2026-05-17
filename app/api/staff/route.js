@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebaseAdmin';
-
+import { checkEmailExists } from '@/lib/checkmail';
 
 
 /* ── helpers ── */
@@ -44,7 +44,7 @@ export async function GET(req) {
   }
 }
 
-/* ────────────────────────────────────────────────────────────
+/* ──────────────────────────────────────────────────────────
    POST /api/staff  – create new staff member
 ──────────────────────────────────────────────────────────── */
 export async function POST(req) {
@@ -68,6 +68,19 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Staff with this CNIC already exists.' }, { status: 409 });
     }
 
+    // Check if email exists in any collection
+    const emailCheck = await checkEmailExists(email);
+    if (emailCheck.exists) {    
+      return NextResponse.json(
+        {
+          success: false,
+          error: emailCheck.message || `Email ${email} already exists in ${emailCheck.collection} collection. Please use a different email address.`,
+          collection: emailCheck.collection,  
+          role: emailCheck.role
+        },
+        { status: 409 }
+      );
+    }
     const payload = {
       docId,
       adminId,

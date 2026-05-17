@@ -3,7 +3,7 @@
 import { db } from "@/lib/firebaseAdmin";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-
+import { checkEmailExists } from "@/lib/checkmail";
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -102,6 +102,17 @@ export async function POST(req) {
       "Teacher",
       "students",
     ];
+
+    const emailCheckResult = await checkEmailExists(normalizedEmail);
+
+    if (emailCheckResult.exists) {
+      return NextResponse.json(
+        {
+          error: emailCheckResult.message
+        },
+        { status: 409 }
+      );
+    }
 
     for (const collectionName of collectionsToCheck) {
       const snap = await db
