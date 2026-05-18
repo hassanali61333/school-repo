@@ -200,7 +200,6 @@ export async function POST(request) {
           daysBefore: parseInt(reminderDaysBefore, 10) || 0,
           channel: notifyVia || "SMS",
         },
-        outstanding: 0,
       },
       
       // Timestamps
@@ -265,10 +264,11 @@ export async function POST(request) {
         studentId: studentId,
         parentId: parentId,
         relationId: relationId,
-        message: `${firstName.trim()} successfully admitted. Student saved in students collection and parent saved in parents collection.`,
+        message: `${firstName.trim()} successfully admitted `,
       },
       { status: 201 }
     );
+
 
   } catch (error) {
     console.error("Admission save error:", error);
