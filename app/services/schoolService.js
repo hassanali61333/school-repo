@@ -168,12 +168,13 @@ export const getStudents = (schoolId) => {
   return api.get(`/admission?schoolId=${schoolId}`);
 };
 
-// GET SINGLE STUDENT
-export const getStudentById = (studentId) => {
-  return api.get(`/admission?studentId=${studentId}`);
+
+export const updateStudent = (data) => {
+  return api.put("/admission", data);
 };
 
-// UPDATE STUDENT
-export const updateStudent = (studentId, data) => {
-  return api.put(`/admission?studentId=${studentId}`, data);
+// DELETE - Delete student (FIXED)
+export const deleteStudent = (studentId) => {
+  return api.delete(`/admission?studentId=${studentId}`);
 };
+

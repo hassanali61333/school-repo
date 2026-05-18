@@ -78,6 +78,7 @@ export default function ClassTimePage() {
       }
     }
   }, [dispatch]);
+  
 
   // Show notification using toast
   const showNotification = (message, type = 'success') => {
@@ -369,8 +370,24 @@ export default function ClassTimePage() {
               onClick={() => setIsTimingModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             >
-              <i className="fas fa-clock"></i>
-              <span>School Timing</span>
+                   <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">School Start Time</label>
+                <input
+                  type="time"
+                  value={timingStartTime}
+                  onChange={(e) => setTimingStartTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">School End Time</label>
+                <input
+                  type="time"
+                  value={timingEndTime}
+                  onChange={(e) => setTimingEndTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
             </button>
           </div>
         </div>
@@ -677,94 +694,7 @@ export default function ClassTimePage() {
       )}
 
       {/* School Timing Modal */}
-      {isTimingModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="flex justify-between items-center p-5 border-b">
-              <h2 className="text-xl font-semibold text-gray-900">School Timing Configuration</h2>
-              <button
-                onClick={() => setIsTimingModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <i className="fas fa-times text-xl"></i>
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">School Start Time</label>
-                <input
-                  type="time"
-                  value={timingStartTime}
-                  onChange={(e) => setTimingStartTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">School End Time</label>
-                <input
-                  type="time"
-                  value={timingEndTime}
-                  onChange={(e) => setTimingEndTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Period Duration (minutes)</label>
-                <input
-                  type="number"
-                  value={timingPeriodDuration}
-                  onChange={(e) => setTimingPeriodDuration(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Periods per Day</label>
-                <input
-                  type="number"
-                  value={timingTotalPeriods}
-                  onChange={(e) => setTimingTotalPeriods(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Break Start</label>
-                  <input
-                    type="time"
-                    value={timingBreakStart}
-                    onChange={(e) => setTimingBreakStart(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Break End</label>
-                  <input
-                    type="time"
-                    value={timingBreakEnd}
-                    onChange={(e) => setTimingBreakEnd(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setIsTimingModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSchoolTimingSave}
-                  disabled={submitting}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg disabled:opacity-50"
-                >
-                  {submitting ? 'Saving...' : (timingExists ? 'Update' : 'Create')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+   
     </div>
   );
 }

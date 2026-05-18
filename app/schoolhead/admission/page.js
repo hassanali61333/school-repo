@@ -1,7 +1,7 @@
 // pages/admission.js
 "use client";
 import { use, useEffect, useState } from "react";
-import { createAdmission, getTeachers } from "@/app/services/schoolService";
+import { createAdmission, getSchoolTiming, getTeachers } from "@/app/services/schoolService";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useDispatch, useSelector } from "react-redux";
@@ -84,6 +84,11 @@ export default function AdmissionScreen() {
   }, [dispatch]);
   const user = useSelector((state) => state.users.loginuser);
 
+
+
+
+
+ 
   const classes = [
     "Nursery",
     "KG",
