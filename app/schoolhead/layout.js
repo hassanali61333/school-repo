@@ -8,7 +8,7 @@ const navItems = [
   { label: "Students", href: "/schoolhead/students", icon: "👨‍🎓" },
   { label: "Teachers", href: "/schoolhead/teachers", icon: "👨‍🏫" },
   { label: "Staff", href: "/schoolhead/staff", icon: "👷" },
-  { label: "Study Material", href: "/schoolhead/material", icon: "📚" },
+ 
   { label: "Reports", href: "/schoolhead/reports", icon: "📊" },
   { label: "admission", href: "/schoolhead/admission", icon: "📊" },
   { label: "contact", href: "/schoolhead/contact", icon: "📊" },

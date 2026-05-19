@@ -1,72 +1,109 @@
-// school-repo/app/api/admission/route.js
+// app/api/admission/route.js
 
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 import { db } from "@/lib/firebaseAdmin";
-import { toNumber } from "@/lib/helper";
-import { onlyDigits } from "@/lib/helper.js";
+import { toNumber, onlyDigits } from "@/lib/helper";
 import { checkEmailExists } from "@/lib/checkmail";
-// ── Generate Custom IDs ────────────────────────────────────────────────────
+
+// ── ID generator ──────────────────────────────────────────────────────────────
 function generateStudentId() {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `student-${timestamp}-${random}`;
 }
 
-function generateParentId() {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `parent-${timestamp}-${random}`;
-}
-
-// ── Main Handler ─────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// POST — Create admission
+// ═════════════════════════════════════════════════════════════════════════════
 export async function POST(request) {
   try {
     const body = await request.json();
 
     const {
-      adminId, headId, schoolId, schoolName,
-      teacherId, teacherName,
-      firstName, lastName, rollNo, gender, dob,
-      studentEmail, studentPassword,
-      parentName, parentPhone, parentEmail, parentPassword, parentAddress,
-      selectedClass, className, group, selectedSection,
-      selectedSubjects,
-      tuitionFee, monthlyFee, admissionFee, registrationFee,
-      securityFee, annualFee, otherFeeLabel, otherFeeAmount,
-      dueDay, autoReminder, reminderDaysBefore, notifyVia,
+      // Account & school
+      adminId,
+      headId,
+      schoolId,
+      schoolName,
+
+      // Teacher
+      teacherId,
+
+      // Student basic
+      firstName,
+      lastName,
+      rollNo,
+      gender,
+      dob,
+      studentEmail,
+      studentPassword,
+
+      // Parent — arrives as nested object { name, phone, email, password, address }
+      parent,
+
+      // Academic
+      selectedClass,   // stored as classId in Firestore
+      className,       // display name e.g. "Nursery", "Class 1", "9th"
+      group,
+      selectedSection, // stored as section in Firestore
+      selectedSubjects,// stored as subjects[] in Firestore
+
+      // Image — filename string (uploaded to PHP server by frontend)
+      imageUrl,
+
+      // Fee flat fields
+      admissionFee,
+      monthlyFee,
+
+      // Billing settings
+      dueDay,
+      autoReminder,
+      reminderDaysBefore,
+      notifyVia,
     } = body;
 
-    // ── Validation ──────────────────────────────────────────────────────────────
+    // ── Extract parent fields ─────────────────────────────────────────────────
+    const parentName    = parent?.name    || "";
+    const parentPhone   = parent?.phone   || "";
+    const parentEmail   = parent?.email   || "";
+    const parentPassword = parent?.password || "";
+    const parentAddress = parent?.address || "";
+
+    // ── Validation ────────────────────────────────────────────────────────────
     const errors = [];
 
-    if (!adminId || !headId || !schoolId) errors.push("Account info missing.");
+    if (!adminId || !headId || !schoolId) errors.push("Account info missing (adminId / headId / schoolId).");
     if (!teacherId) errors.push("Teacher Incharge is required.");
     if (!firstName?.trim()) errors.push("First name is required.");
 
-
     const rd = onlyDigits(rollNo);
-    if (!rd || rd.length < 1 || rd.length > 10) errors.push("Roll number must be 1–10 digits.");
+    if (!rd || rd.length < 1 || rd.length > 10)
+      errors.push("Roll number must be 1–10 digits.");
 
-    if (!studentEmail) errors.push("Student email is required.");
-    if (!studentEmail.includes('@')) errors.push("Invalid student email format.");
-    if (!studentPassword || studentPassword.length < 6) errors.push("Student password min 6 characters.");
-    
+    if (!studentEmail || !studentEmail.includes("@"))
+      errors.push("Valid student email is required.");
+    if (!studentPassword || String(studentPassword).length < 6)
+      errors.push("Student password must be at least 6 characters.");
+
     if (!parentName?.trim()) errors.push("Parent name is required.");
-
     const pd = onlyDigits(parentPhone);
-    if (pd.length < 10 || pd.length > 14) errors.push("Parent phone must be 10–14 digits.");
+    if (pd.length < 10 || pd.length > 14)
+      errors.push("Parent phone must be 10–14 digits.");
+    if (!parentEmail || !parentEmail.includes("@"))
+      errors.push("Valid parent email is required.");
 
-    if (!parentEmail) errors.push("Parent email is required.");
-    if (!parentEmail.includes('@')) errors.push("Invalid parent email format.");
-    if (!parentPassword || parentPassword.length < 6) errors.push("Parent password min 6 characters.");
-    
     if (!selectedClass) errors.push("Class is required.");
     if (!selectedSection) errors.push("Section is required.");
-    if (!selectedSubjects || selectedSubjects.length === 0) errors.push("Select at least one subject.");
-    if (toNumber(monthlyFee) <= 0) errors.push("Monthly fee must be > 0.");
+
+    if (!Array.isArray(selectedSubjects) || selectedSubjects.length === 0)
+      errors.push("Select at least one subject.");
+
+    if (toNumber(monthlyFee) <= 0)
+      errors.push("Monthly fee must be greater than 0.");
 
     const dd = toNumber(dueDay);
-    if (!(dd >= 1 && dd <= 28)) errors.push("Due day must be 1–28.");
+    if (!(dd >= 1 && dd <= 28))
+      errors.push("Due day must be between 1 and 28.");
 
     if (errors.length > 0) {
       return NextResponse.json(
@@ -75,7 +112,47 @@ export async function POST(request) {
       );
     }
 
-    // ── Duplicate roll number check in students collection ─────────────────────────
+    const normalizedStudentEmail = studentEmail.trim().toLowerCase();
+    const normalizedParentEmail  = parentEmail.trim().toLowerCase();
+
+    // ── Student/parent email must not be the same ─────────────────────────────
+    if (normalizedStudentEmail === normalizedParentEmail) {
+      return NextResponse.json(
+        { success: false, message: "Student and parent email cannot be the same." },
+        { status: 409 }
+      );
+    }
+
+    // ── Check student email across all collections ────────────────────────────
+    const emailCheckResult = await checkEmailExists(normalizedStudentEmail);
+    if (emailCheckResult.exists) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: emailCheckResult.message ||
+            `Email ${normalizedStudentEmail} is already in use.`,
+          collection: emailCheckResult.collection,
+          role: emailCheckResult.role,
+        },
+        { status: 409 }
+      );
+    }
+
+    // ── Duplicate student email within same school ────────────────────────────
+    const dupStudentEmailSnap = await db
+      .collection("students")
+      .where("email", "==", normalizedStudentEmail)
+      .where("schoolId", "==", schoolId)
+      .get();
+
+    if (!dupStudentEmailSnap.empty) {
+      return NextResponse.json(
+        { success: false, message: "This student email already exists in this school." },
+        { status: 409 }
+      );
+    }
+
+    // ── Duplicate roll number in same class / section / school ────────────────
     const dupRollSnap = await db
       .collection("students")
       .where("rollNo", "==", rd)
@@ -88,190 +165,132 @@ export async function POST(request) {
       return NextResponse.json(
         {
           success: false,
-          message: `Roll no ${rd} already exists in Class "${className}" Section "${selectedSection}".`,
+          message: `Roll no ${rd} already exists in ${className || selectedClass} — Section ${selectedSection}.`,
         },
         { status: 409 }
       );
     }
 
+    // ── Parent email: check if parent already exists in this school ───────────
+    let resolvedParentPassword = parentPassword || null;
 
-    const emailCheckResult = await checkEmailExists(studentEmail.trim().toLowerCase());
-    if (emailCheckResult.exists) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: emailCheckResult.message || `Email ${studentEmail} already exists in ${emailCheckResult.collection} collection. Please use a different email address.`,
-          collection: emailCheckResult.collection,
-          role: emailCheckResult.role
-        },
-        { status: 409 }
-      );
-    }
-
-    // ── Duplicate student email check ───────────────────────────────────────────────
-    const dupStudentEmailSnap = await db
+    const existingParentSnap = await db
       .collection("students")
-      .where("email", "==", studentEmail.trim().toLowerCase())
+      .where("parent.email", "==", normalizedParentEmail)
       .where("schoolId", "==", schoolId)
+      .limit(1)
       .get();
 
-    if (!dupStudentEmailSnap.empty) {
-      return NextResponse.json(
-        { success: false, message: "Student email already exists in this school." },
-        { status: 409 }
-      );
+    const parentExistsInSchool = !existingParentSnap.empty;
+
+    if (parentExistsInSchool) {
+      if (!resolvedParentPassword) {
+        const existingParentData = existingParentSnap.docs[0].data();
+        resolvedParentPassword = existingParentData?.parent?.password || null;
+      }
+    } else {
+      if (!resolvedParentPassword || resolvedParentPassword.length < 8) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "New parent account requires a password of at least 8 characters.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
-    // ── Duplicate parent email check in parents collection ─────────────────────────
-    const dupParentEmailSnap = await db
-      .collection("parents")
-      .where("email", "==", parentEmail.trim().toLowerCase())
-      .where("schoolId", "==", schoolId)
-      .get();
+    // ── Build Firestore document ──────────────────────────────────────────────
+    const studentId        = generateStudentId();
+    const currentTimestamp = new Date().toISOString();
 
-    if (!dupParentEmailSnap.empty) {
-      return NextResponse.json(
-        { success: false, message: "Parent email already registered in this school." },
-        { status: 409 }
-      );
-    }
+    // fee sub-object — matches first object schema exactly
+    const feeObj = {
+      admissionOneTime: toNumber(admissionFee),
+      dueDay: toNumber(dueDay),
+      monthly: toNumber(monthlyFee),
+      outstanding: 0,
+      reminder: {
+        enabled: !!autoReminder,
+        daysBefore: parseInt(String(reminderDaysBefore), 10) || 0,
+        channel: notifyVia || "WhatsApp",
+      },
+    };
 
-    // ── Generate Custom IDs ────────────────────────────────────────────────────
-    const studentId = generateStudentId();
-    const parentId = generateParentId();
+    // parent sub-object
+    const parentObj = {
+      name: parentName.trim(),
+      phone: onlyDigits(parentPhone),
+      email: normalizedParentEmail,
+      address: parentAddress?.trim() || "",
+    };
+    if (resolvedParentPassword) parentObj.password = resolvedParentPassword;
 
-    // ── Student Payload ───────────────────────────────────────────────────────
-    const studentPayload = {
-      // Metadata
-      studentId: studentId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      
-      // School Information
+    // Full student document — matches first object schema exactly
+    const studentDoc = {
+      // ── Identifiers ──
+      studentId,
       adminId,
       headId,
       schoolId,
       schoolName,
-      
-      // Teacher Information
+
+      // ── Teacher ──
       teacherId,
-      teacherName,
-      
-      // Student Information
+
+      // ── Student ──
       role: "student",
+      status: "active",
       firstName: firstName.trim(),
       lastName: (lastName || "").trim(),
-      fullName: `${firstName.trim()} ${(lastName || "").trim()}`.trim(),
       rollNo: rd,
       gender,
       dob: (dob || "").trim(),
-      email: studentEmail.trim().toLowerCase(),
-      password: studentPassword, // Remember to hash this in production!
-      status: "active",
-      imageUrl: null,
-      
-      // Parent Reference
-      parentId: parentId,
-      parentName: parentName.trim(),
-      parentEmail: parentEmail.trim().toLowerCase(),
-      parentPhone: onlyDigits(parentPhone),
-      
-      // Academic Information
-      classId: selectedClass,
-      className,
+      email: normalizedStudentEmail,
+      password: studentPassword,
+      imageUrl: imageUrl || null,
       group: group || null,
+
+      // ── Parent (nested) ──
+      parent: parentObj,
+
+      // ── Academic ──
+      classId: selectedClass,
+      className: className || selectedClass,
       section: selectedSection,
       subjects: selectedSubjects,
-      
-      // Fee Structure
-      fee: {
-        tuition: toNumber(tuitionFee),
-        monthly: toNumber(monthlyFee),
-        admissionOneTime: toNumber(admissionFee),
-        registration: toNumber(registrationFee),
-        security: toNumber(securityFee),
-        annual: toNumber(annualFee),
-        other: otherFeeLabel?.trim()
-          ? { label: otherFeeLabel.trim(), amount: toNumber(otherFeeAmount) }
-          : null,
-        dueDay: toNumber(dueDay),
-        reminder: {
-          enabled: !!autoReminder,
-          daysBefore: parseInt(reminderDaysBefore, 10) || 0,
-          channel: notifyVia || "SMS",
-        },
-      },
-      
-      // Timestamps
-      admissionDate: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
+
+      // ── Fee ──
+      fee: feeObj,
+
+      // ── Timestamps ──
+      createdAt: currentTimestamp,
     };
 
-    // ── Parent Payload ───────────────────────────────────────────────────────
-    const parentPayload = {
-      // Metadata
-      parentId: parentId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      
-      // School Information
-      adminId,
-      headId,
-      schoolId,
-      schoolName,
-      
-      // Parent Information
-      role: "parent",
-      name: parentName.trim(),
-      email: parentEmail.trim().toLowerCase(),
-      password: parentPassword, // Remember to hash this in production!
-      phone: onlyDigits(parentPhone),
-      address: (parentAddress || "").trim() || null,
-      status: "active",
-      
-      // Student Reference (for multiple children support)
-      studentIds: [studentId],
-      studentNames: [`${firstName.trim()} ${(lastName || "").trim()}`.trim()],
-      
-      // Relationship
-      relationship: "Parent",
-      isPrimaryContact: true,
-      
-      // Timestamps
-      lastUpdated: new Date().toISOString(),
-    };
-
-    // ── Save to separate collections ─────────────────────────────────────────────
-    await db.collection("students").doc(studentId).set(studentPayload);
-    await db.collection("parents").doc(parentId).set(parentPayload);
-
-    // ── Optional: Create reference collection for relationships ──────────────────
-    const relationId = `${studentId}_${parentId}`;
-    await db.collection("studentParentRelations").doc(relationId).set({
-      relationId: relationId,
-      studentId: studentId,
-      parentId: parentId,
-      schoolId: schoolId,
-      relationship: "parent-child",
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+    // ── Save to Firestore ─────────────────────────────────────────────────────
+    await db.collection("students").doc(studentId).set(studentDoc);
 
     return NextResponse.json(
       {
         success: true,
-        studentId: studentId,
-        parentId: parentId,
-        relationId: relationId,
-        message: `${firstName.trim()} successfully admitted `,
+        studentId,
+        message: `${firstName.trim()} has been successfully admitted.`,
+        data: {
+          studentId,
+          firstName: firstName.trim(),
+          lastName: (lastName || "").trim(),
+          email: normalizedStudentEmail,
+          rollNo: rd,
+          classId: selectedClass,
+          className: studentDoc.className,
+          section: selectedSection,
+          group: group || null,
+        },
       },
       { status: 201 }
     );
-
-
   } catch (error) {
-    console.error("Admission save error:", error);
+    console.error("Admission POST error:", error);
     return NextResponse.json(
       { success: false, message: "Failed to save. Please try again." },
       { status: 500 }
@@ -279,15 +298,14 @@ export async function POST(request) {
   }
 }
 
-// ===========================================================get studnet=====================================
-// ── GET: Fetch all students of a school ─────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// GET — Fetch all students of a school
+// ═════════════════════════════════════════════════════════════════════════════
 export async function GET(request) {
   try {
-    // Get schoolId from query parameters
     const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get('schoolId');
+    const schoolId = searchParams.get("schoolId");
 
-    // Validation
     if (!schoolId) {
       return NextResponse.json(
         { success: false, message: "schoolId is required." },
@@ -295,166 +313,91 @@ export async function GET(request) {
       );
     }
 
-    // Build query - get all students for the school
-    const query = db.collection("students").where("schoolId", "==", schoolId);
-    
-    // Get all students (no pagination, no filters)
-    const snapshot = await query.get();
+    const snapshot = await db
+      .collection("students")
+      .where("schoolId", "==", schoolId)
+      .get();
 
     if (snapshot.empty) {
-      return NextResponse.json(
-        { 
-          success: true, 
-          students: [],
-          total: 0
-        },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: true, students: [], total: 0 });
     }
 
-    // Format student data (remove sensitive info like password)
-    const students = [];
-    snapshot.forEach(doc => {
-      const studentData = doc.data();
-      // Remove sensitive information
-      delete studentData.password;
-      
-      students.push({
-        ...studentData,
-        id: doc.id
-      });
+    const students = snapshot.docs.map((doc) => {
+      const data = { id: doc.id, ...doc.data() };
+      // Strip passwords before sending to client
+      delete data.password;
+      if (data.parent?.password) delete data.parent.password;
+      return data;
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        students,
-        total: students.length
-      },
-      { status: 200 }
-    );
-
+    return NextResponse.json({ success: true, students, total: students.length });
   } catch (error) {
-    console.error("Error fetching students:", error);
+    console.error("Admission GET error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to fetch students. Please try again." },
+      { success: false, message: "Failed to fetch students." },
       { status: 500 }
     );
   }
 }
 
-
-
-//========================================================update student==============================================
-
-// ── UPDATE: Student ─────────────────────────────────────────────
-// app/api/admission/route.js
-// Add this PUT function alongside your existing POST and GET
-
+// ═════════════════════════════════════════════════════════════════════════════
+// PUT — Update student
+// ═════════════════════════════════════════════════════════════════════════════
 export async function PUT(request) {
   try {
     const body = await request.json();
 
     const {
-      studentId,
-      schoolId,
-      firstName,
-      lastName,
-      rollNo,
-      gender,
-      dob,
-      studentEmail,
-      studentPassword,
-
-      parentName,
-      parentPhone,
-      parentEmail,
-      parentPassword,
-      parentAddress,
-
-      selectedClass,
-      className,
-      selectedSection,
-      group,
-      selectedSubjects,
-
-      tuitionFee,
-      monthlyFee,
-      admissionFee,
-      registrationFee,
-      securityFee,
-      annualFee,
-      otherFeeLabel,
-      otherFeeAmount,
-
-      dueDay,
-      autoReminder,
-      reminderDaysBefore,
-      notifyVia,
+      studentId, schoolId,
+      firstName, lastName, rollNo, gender, dob,
+      studentEmail, studentPassword,
+      parent,
+      selectedClass, className, selectedSection, group, selectedSubjects,
+      admissionFee, monthlyFee,
+      dueDay, autoReminder, reminderDaysBefore, notifyVia,
+      imageUrl,
+      teacherId,
     } = body;
 
-    // ── Validation ─────────────────────────────
+    const parentName     = parent?.name    || "";
+    const parentPhone    = parent?.phone   || "";
+    const parentEmail    = parent?.email   || "";
+    const parentPassword = parent?.password || "";
+    const parentAddress  = parent?.address || "";
+
+    // ── Validation ────────────────────────────────────────────────────────────
     const errors = [];
-
-    if (!studentId || !schoolId) {
-      errors.push("studentId and schoolId are required.");
-    }
-
+    if (!studentId || !schoolId) errors.push("studentId and schoolId are required.");
     if (!firstName?.trim()) errors.push("First name is required.");
-
     const rd = onlyDigits(rollNo);
-    if (!rd || rd.length < 1 || rd.length > 10)
-      errors.push("Roll number must be 1–10 digits.");
-
-    if (!studentEmail || !studentEmail.includes("@"))
-      errors.push("Valid student email required.");
-
-    if (studentPassword && studentPassword.length < 6)
-      errors.push("Student password must be at least 6 characters.");
-
-    if (!parentName?.trim()) errors.push("Parent name is required.");
-
+    if (!rd || rd.length < 1 || rd.length > 10) errors.push("Roll number must be 1–10 digits.");
+    if (!studentEmail || !studentEmail.includes("@")) errors.push("Valid student email required.");
+    if (studentPassword && studentPassword.length < 6) errors.push("Student password min 6 characters.");
+    if (!parentName?.trim()) errors.push("Parent name required.");
     const pd = onlyDigits(parentPhone);
-    if (pd.length < 10 || pd.length > 14)
-      errors.push("Parent phone must be 10–14 digits.");
-
-    if (!parentEmail || !parentEmail.includes("@"))
-      errors.push("Valid parent email required.");
-
-    if (parentPassword && parentPassword.length < 6)
-      errors.push("Parent password must be at least 6 characters.");
-
+    if (pd.length < 10 || pd.length > 14) errors.push("Parent phone must be 10–14 digits.");
+    if (!parentEmail || !parentEmail.includes("@")) errors.push("Valid parent email required.");
     if (!selectedClass) errors.push("Class is required.");
     if (!selectedSection) errors.push("Section is required.");
-    if (!selectedSubjects || selectedSubjects.length === 0)
+    if (!Array.isArray(selectedSubjects) || selectedSubjects.length === 0)
       errors.push("Select at least one subject.");
-
-    if (toNumber(monthlyFee) <= 0)
-      errors.push("Monthly fee must be greater than 0.");
-
-    const dd = toNumber(dueDay);
-    if (!(dd >= 1 && dd <= 28))
-      errors.push("Due day must be between 1–28.");
+    if (toNumber(monthlyFee) <= 0) errors.push("Monthly fee must be > 0.");
+    const dd2 = toNumber(dueDay);
+    if (!(dd2 >= 1 && dd2 <= 28)) errors.push("Due day must be 1–28.");
 
     if (errors.length > 0) {
-      return NextResponse.json(
-        { success: false, message: errors.join(" | ") },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: errors.join(" | ") }, { status: 400 });
     }
 
-    // ── Check student exists ─────────────────────
-    const studentRef = db.collection("students").doc(studentId);
+    // ── Student must exist ────────────────────────────────────────────────────
+    const studentRef  = db.collection("students").doc(studentId);
     const studentSnap = await studentRef.get();
-
     if (!studentSnap.exists) {
-      return NextResponse.json(
-        { success: false, message: "Student not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, message: "Student not found." }, { status: 404 });
     }
+    const existingData = studentSnap.data();
 
-    // ── Duplicate roll check ─────────────────────
+    // ── Duplicate roll check (excluding current student) ──────────────────────
     const dupRollSnap = await db
       .collection("students")
       .where("rollNo", "==", rd)
@@ -463,226 +406,120 @@ export async function PUT(request) {
       .where("schoolId", "==", schoolId)
       .get();
 
-    const isSameStudent = dupRollSnap.docs.every(
-      (doc) => doc.id === studentId
-    );
-
-    if (!dupRollSnap.empty && !isSameStudent) {
+    if (!dupRollSnap.empty && dupRollSnap.docs.some((d) => d.id !== studentId)) {
       return NextResponse.json(
-        {
-          success: false,
-          message: `Roll no ${rd} already exists in this class/section.`,
-        },
+        { success: false, message: `Roll no ${rd} already exists in this class/section.` },
         { status: 409 }
       );
     }
 
-    // ── Build update payload ─────────────────────
-    const updateData = {
-      updatedAt: new Date().toISOString(),
+    // ── Build parent object ───────────────────────────────────────────────────
+    const parentUpdate = {
+      name: parentName.trim() || existingData.parent?.name,
+      phone: onlyDigits(parentPhone) || existingData.parent?.phone,
+      email: parentEmail.trim().toLowerCase() || existingData.parent?.email,
+      address: parentAddress?.trim() || existingData.parent?.address || "",
+    };
+    if (parentPassword && parentPassword.length >= 6) parentUpdate.password = parentPassword;
+    else if (existingData.parent?.password) parentUpdate.password = existingData.parent.password;
 
-      firstName: firstName.trim(),
-      lastName: (lastName || "").trim(),
-      fullName: `${firstName.trim()} ${(lastName || "").trim()}`.trim(),
-
-      rollNo: rd,
-      gender,
-      dob: (dob || "").trim(),
-
-      email: studentEmail.trim().toLowerCase(),
-      ...(studentPassword ? { password: studentPassword } : {}),
-
-      parentName: parentName.trim(),
-      parentEmail: parentEmail.trim().toLowerCase(),
-      parentPhone: onlyDigits(parentPhone),
-
-      classId: selectedClass,
-      className,
-      section: selectedSection,
-      group: group || null,
-      subjects: selectedSubjects,
-
-      fee: {
-        tuition: toNumber(tuitionFee),
-        monthly: toNumber(monthlyFee),
-        admissionOneTime: toNumber(admissionFee),
-        registration: toNumber(registrationFee),
-        security: toNumber(securityFee),
-        annual: toNumber(annualFee),
-        other: otherFeeLabel?.trim()
-          ? { label: otherFeeLabel.trim(), amount: toNumber(otherFeeAmount) }
-          : null,
-        dueDay: toNumber(dueDay),
-        reminder: {
-          enabled: !!autoReminder,
-          daysBefore: parseInt(reminderDaysBefore, 10) || 0,
-          channel: notifyVia || "SMS",
-        },
+    // ── Build fee object ──────────────────────────────────────────────────────
+    const feeUpdate = {
+      admissionOneTime: toNumber(admissionFee) || existingData.fee?.admissionOneTime || 0,
+      dueDay: toNumber(dueDay) || existingData.fee?.dueDay || 5,
+      monthly: toNumber(monthlyFee) || existingData.fee?.monthly || 0,
+      outstanding: existingData.fee?.outstanding || 0,
+      reminder: {
+        enabled: autoReminder !== undefined ? !!autoReminder : existingData.fee?.reminder?.enabled || false,
+        daysBefore: reminderDaysBefore !== undefined ? parseInt(String(reminderDaysBefore), 10) : existingData.fee?.reminder?.daysBefore || 3,
+        channel: notifyVia || existingData.fee?.reminder?.channel || "WhatsApp",
       },
     };
 
-    // ── Update parent document if needed ─────────────────────────
-    const existingData = studentSnap.data();
-    const parentId = existingData.parentId;
-    
-    if (parentId && (parentName || parentPhone || parentEmail || parentPassword || parentAddress)) {
-      const parentRef = db.collection("parents").doc(parentId);
-      const parentUpdate = {
-        updatedAt: new Date().toISOString(),
-        name: parentName?.trim() || existingData.parentName,
-        phone: onlyDigits(parentPhone) || existingData.parentPhone,
-        email: parentEmail?.trim().toLowerCase() || existingData.parentEmail,
-        ...(parentPassword ? { password: parentPassword } : {}),
-        ...(parentAddress ? { address: parentAddress.trim() } : {})
-      };
-      await parentRef.update(parentUpdate);
-    }
+    // ── Update payload ────────────────────────────────────────────────────────
+    const updateData = {
+      firstName: firstName.trim(),
+      lastName: (lastName || "").trim(),
+      rollNo: rd,
+      gender,
+      dob: (dob || "").trim(),
+      email: studentEmail.trim().toLowerCase(),
+      parent: parentUpdate,
+      classId: selectedClass,
+      className: className || selectedClass,
+      group: group || null,
+      section: selectedSection,
+      subjects: selectedSubjects,
+      fee: feeUpdate,
+    };
 
-    // ── Update student ───────────────────────────
+    if (teacherId) updateData.teacherId = teacherId;
+    if (studentPassword && studentPassword.length >= 6) updateData.password = studentPassword;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+
     await studentRef.update(updateData);
 
-    const updatedSnap = await studentRef.get();
-    const updatedData = updatedSnap.data();
-    delete updatedData.password; // Remove sensitive data
+    const updatedDoc = await studentRef.get();
+    const result = { id: updatedDoc.id, ...updatedDoc.data() };
+    delete result.password;
+    if (result.parent?.password) delete result.parent.password;
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Student updated successfully.",
-        student: {
-          id: updatedSnap.id,
-          ...updatedData,
-        },
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, message: "Student updated successfully.", student: result });
   } catch (error) {
-    console.error("Update student error:", error);
+    console.error("Admission PUT error:", error);
     return NextResponse.json(
       { success: false, message: "Failed to update student: " + error.message },
       { status: 500 }
     );
   }
-
 }
 
-
-//========================================================delete student==============================================
-
-// app/api/admission/route.js
-// Add this DELETE function alongside your POST and GET
-
+// ═════════════════════════════════════════════════════════════════════════════
+// DELETE — Remove student + related records
+// ═════════════════════════════════════════════════════════════════════════════
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const studentId = searchParams.get('studentId');
-
-    console.log("=== DELETE API CALLED ===");
-    console.log("Student ID to delete:", studentId);
+    const studentId = searchParams.get("studentId");
 
     if (!studentId) {
-      return NextResponse.json(
-        { success: false, message: "studentId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "studentId is required." }, { status: 400 });
     }
 
-    // Get student data first
     const studentRef = db.collection("students").doc(studentId);
     const studentDoc = await studentRef.get();
-    
+
     if (!studentDoc.exists) {
-      return NextResponse.json(
-        { success: false, message: "Student not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, message: "Student not found." }, { status: 404 });
     }
 
-    const studentData = studentDoc.data();
-    const parentId = studentData.parentId;
-    const schoolId = studentData.schoolId;
-    const studentName = studentData.fullName || studentData.firstName;
-    const rollNo = studentData.rollNo;
-    
-    // Start batch operation
-    const batch = db.batch();
+    const { schoolId, firstName, rollNo } = studentDoc.data();
+    const studentName = firstName;
 
-    // 1. Delete student document
+    const batch = db.batch();
     batch.delete(studentRef);
 
-    // 2. Delete student-parent relationship
-    const relationId = `${studentId}_${parentId}`;
-    const relationRef = db.collection("studentParentRelations").doc(relationId);
-    const relationDoc = await relationRef.get();
-    if (relationDoc.exists) {
-      batch.delete(relationRef);
-    }
-
-    // 3. Update or delete parent document
-    if (parentId) {
-      const parentRef = db.collection("parents").doc(parentId);
-      const parentDoc = await parentRef.get();
-      
-      if (parentDoc.exists) {
-        const parentData = parentDoc.data();
-        const studentIds = (parentData.studentIds || []).filter(id => id !== studentId);
-        const studentNames = (parentData.studentNames || []).filter(name => name !== studentName);
-        
-        if (studentIds.length === 0) {
-          // If no more children, delete the parent
-          batch.delete(parentRef);
-        } else {
-          // Update parent's student lists
-          batch.update(parentRef, {
-            studentIds: studentIds,
-            studentNames: studentNames,
-            updatedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString()
-          });
-        }
-      }
-    }
-
-    // 4. Delete related records
-    const collectionsToClean = [
-      "fees", "attendance", "examResults", "payments", "feeChallans"
-    ];
-
-    for (const collectionName of collectionsToClean) {
-      const snapshot = await db
-        .collection(collectionName)
+    const relatedCollections = ["fees", "attendance", "examResults", "payments", "feeChallans"];
+    for (const col of relatedCollections) {
+      const snap = await db
+        .collection(col)
         .where("studentId", "==", studentId)
         .where("schoolId", "==", schoolId)
         .get();
-      
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
+      snap.forEach((doc) => batch.delete(doc.ref));
     }
 
-    // Execute all deletions
     await batch.commit();
 
-    console.log(`Successfully deleted: ${studentName} (Roll No: ${rollNo})`);
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: `${studentName} (Roll No: ${rollNo}) deleted successfully along with all related data`,
-        deletedStudentId: studentId,
-        deletedStudentName: studentName,
-        deletedRollNo: rollNo
-      },
-      { status: 200 }
-    );
-
+    return NextResponse.json({
+      success: true,
+      message: `${studentName} (Roll No: ${rollNo}) and all related records deleted.`,
+      deletedStudentId: studentId,
+    });
   } catch (error) {
-    console.error("Delete error:", error);
+    console.error("Admission DELETE error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: "Failed to delete student: " + error.message 
-      },
+      { success: false, message: "Failed to delete student: " + error.message },
       { status: 500 }
     );
   }
