@@ -6,12 +6,12 @@ import { setAdminID, setLoginAdmin, setloginuser, setuserId } from '@/app/store/
 import { addTeacher, getTeachers, updateTeacher, deleteTeacher } from '@/app/services/schoolService';
 
 /* ── Constants ────────────────────────────────────────── */
-const CLASS_OPTIONS = ['1','2','3','4','5','6','7','8','9','10','11','12'];
-const SECTION_OPTIONS = ['A','B','C','D','E'];
+const CLASS_OPTIONS = ['KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const SECTION_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
 const SUBJECT_OPTIONS = [
-  'Mathematics','English','Urdu','Physics','Chemistry','Biology',
-  'Computer Science','Islamiat','Pakistan Studies','History',
-  'Geography','Economics','Accounting','Art','Physical Education',
+  'Mathematics', 'English', 'Urdu', 'Physics', 'Chemistry', 'Biology',
+  'Computer Science', 'Islamiat', 'Pakistan Studies', 'History',
+  'Geography', 'Economics', 'Accounting', 'Art', 'Physical Education',
 ];
 
 const EMPTY_FORM = {
@@ -37,17 +37,17 @@ const EMPTY_FORM = {
 export default function TeacherPage() {
   const dispatch = useDispatch();
 
-  const [teacherList,  setTeacherList]  = useState([]);
-  const [loadingList,  setLoadingList]  = useState(true);
-  const [saving,       setSaving]       = useState(false);
-  const [deleting,     setDeleting]     = useState(null);
-  const [view,         setView]         = useState('list'); // 'list' | 'add' | 'edit'
-  const [editTarget,   setEditTarget]   = useState(null);
-  const [form,         setForm]         = useState(EMPTY_FORM);
-  const [showPw,       setShowPw]       = useState(false);
-  const [showCpw,      setShowCpw]      = useState(false);
-  const [toast,        setToast]        = useState(null);
-  const [search,       setSearch]       = useState('');
+  const [teacherList, setTeacherList] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(null);
+  const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
+  const [editTarget, setEditTarget] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [showPw, setShowPw] = useState(false);
+  const [showCpw, setShowCpw] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [search, setSearch] = useState('');
 
   /* ── restore admin from localStorage ── */
   useEffect(() => {
@@ -59,11 +59,11 @@ export default function TeacherPage() {
     }
   }, [dispatch]);
 
-  const admin      = useSelector((s) => s.users.loginuser);
-console.log("Admin in TeacherPage:", admin);
-  const schoolId   = admin?.schoolId   || '';
-  const adminId    = admin?.adminId    || '';
-  const headId     = admin?.id         || '';
+  const admin = useSelector((s) => s.users.loginuser);
+  console.log("Admin in TeacherPage:", admin);
+  const schoolId = admin?.schoolId || '';
+  const adminId = admin?.adminId || '';
+  const headId = admin?.id || '';
   const schoolName = admin?.schoolName || 'Demo School';
 
   /* ── toast ── */
@@ -78,8 +78,14 @@ console.log("Admin in TeacherPage:", admin);
     try {
       const res = await getTeachers(schoolId);
       console.log("Fetched teachers:", res.data.data);
-      setTeacherList(res.data.data || []);
-    } catch {
+      // Add docId field to each teacher for consistency
+      const teachersWithDocId = (res.data.data || []).map(teacher => ({
+        ...teacher,
+        docId: teacher.id || teacher.teacherId // Use id or teacherId as docId
+      }));
+      setTeacherList(teachersWithDocId);
+    } catch (error) {
+      console.error("Failed to load teachers:", error);
       showToast('error', 'Failed to load teacher list');
     } finally {
       setLoadingList(false);
@@ -88,7 +94,7 @@ console.log("Admin in TeacherPage:", admin);
 
   useEffect(() => {
     if (schoolId) fetchTeachers();
-  }, [admin?.schoolId]);
+  }, [schoolId]);
 
   /* ── open add ── */
   const openAdd = () => {
@@ -101,83 +107,101 @@ console.log("Admin in TeacherPage:", admin);
   const openEdit = (teacher) => {
     setEditTarget(teacher);
     setForm({
-      docId:          teacher.docId,
-      name:           teacher.name           || '',
-      qualification:  teacher.qualification  || '',
-      contactNumber:  teacher.contactNumber  || '',
-      email:          teacher.email          || '',
-      imageUrl:       teacher.imageUrl       || '',
-      class:          teacher.class          || '',
-      section:        teacher.section        || '',
-      subjects:       teacher.subjects       || [],
+      docId: teacher.docId || teacher.id || teacher.teacherId, // Use the correct ID field
+      name: teacher.name || '',
+      qualification: teacher.qualification || '',
+      contactNumber: teacher.contactNumber || '',
+      email: teacher.email || '',
+      imageUrl: teacher.imageUrl || '',
+      class: teacher.class || '',
+      section: teacher.section || '',
+      subjects: teacher.subjects || [],
       primarySubject: teacher.primarySubject || '',
-      isClassIncharge:teacher.isClassIncharge|| false,
-      salary:         teacher.salary         || '',
-      status:         teacher.status         || 'active',
+      isClassIncharge: teacher.isClassIncharge || false,
+      salary: teacher.salary || '',
+      status: teacher.status || 'active',
     });
     setView('edit');
   };
 
-  /* ── save ── */
+  /* ── save (add new teacher) ── */
   const handleSave = async () => {
+    if (form.password !== form.confirmPassword) {
+      showToast('error', 'Passwords do not match');
+      return;
+    }
+    
+    if (!form.name || !form.email || !form.password) {
+      showToast('error', 'Please fill all required fields');
+      return;
+    }
+
     setSaving(true);
     try {
-      if (form.password !== form.confirmPassword) {
-        showToast('error', 'Passwords do not match');
-        return;
-      }
       await addTeacher({ ...form, adminId, headId, schoolId, schoolName });
       showToast('success', 'Teacher registered successfully!');
-      fetchTeachers();
+      await fetchTeachers(); // Refresh the list
       setForm(EMPTY_FORM);
       setView('list');
-    } catch (e) {
-      showToast('error', e.response?.data?.error || 'Save failed');
+    } catch (error) {
+      console.error("Save error:", error);
+      showToast('error', error.response?.data?.error || 'Failed to register teacher');
     } finally {
       setSaving(false);
     }
   };
 
-  /* ── update ── */
+  /* ── update teacher ── */
   const handleUpdate = async () => {
     setSaving(true);
     try {
       await updateTeacher({
-        docId:          form.docId,
-        name:           form.name,
-        qualification:  form.qualification,
-        contactNumber:  form.contactNumber,
-        email:          form.email,
-        imageUrl:       form.imageUrl,
-        class:          form.class,
-        section:        form.section,
-        subjects:       form.subjects,
+        docId: form.docId, // This should be the teacher's ID
+        name: form.name,
+        qualification: form.qualification,
+        contactNumber: form.contactNumber,
+        email: form.email,
+        imageUrl: form.imageUrl,
+        class: form.class,
+        section: form.section,
+        subjects: form.subjects,
         primarySubject: form.primarySubject,
-        isClassIncharge:form.isClassIncharge,
-        salary:         form.salary,
-        status:         form.status,
+        isClassIncharge: form.isClassIncharge,
+        salary: form.salary,
+        status: form.status,
       });
       showToast('success', 'Teacher updated successfully');
-      fetchTeachers();
+      await fetchTeachers(); // Refresh the list
       setView('list');
       setEditTarget(null);
       setForm(EMPTY_FORM);
-    } catch (e) {
-      showToast('error', e.response?.data?.error || 'Update failed');
+    } catch (error) {
+      console.error("Update error:", error);
+      showToast('error', error.response?.data?.error || 'Update failed');
     } finally {
       setSaving(false);
     }
   };
 
-  /* ── delete ── */
-  const handleDelete = async (docId) => {
-    setDeleting(docId);
+  /* ── delete teacher ── */
+  const handleDelete = async (teacherId) => {
+    if (!teacherId) {
+      showToast('error', 'Invalid teacher ID');
+      return;
+    }
+    
+    if (!confirm('Are you sure you want to delete this teacher?')) {
+      return;
+    }
+
+    setDeleting(teacherId);
     try {
-      await deleteTeacher(docId);
-      showToast('success', 'Teacher deleted');
-      fetchTeachers();
-    } catch (e) {
-      showToast('error', e.response?.data?.error || 'Delete failed');
+      await deleteTeacher(teacherId);
+      showToast('success', 'Teacher deleted successfully');
+      await fetchTeachers(); // Refresh the list
+    } catch (error) {
+      console.error("Delete error:", error);
+      showToast('error', error.response?.data?.error || 'Delete failed');
     } finally {
       setDeleting(null);
     }
@@ -205,7 +229,7 @@ console.log("Admin in TeacherPage:", admin);
     (t) =>
       t.name?.toLowerCase().includes(search.toLowerCase()) ||
       t.primarySubject?.toLowerCase().includes(search.toLowerCase()) ||
-      t.class?.toString().includes(search) ||
+      t.class?.toString().toLowerCase().includes(search.toLowerCase()) ||
       t.email?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -238,7 +262,7 @@ console.log("Admin in TeacherPage:", admin);
           <h1 className="text-white text-xl font-bold tracking-tight">
             {view === 'list' ? '🎓 Teacher Management'
               : view === 'add' ? '➕ Add Teacher'
-              : '✏️ Edit Teacher'}
+                : '✏️ Edit Teacher'}
           </h1>
           {view === 'list' ? (
             <button
@@ -282,13 +306,13 @@ console.log("Admin in TeacherPage:", admin);
               <div className="grid gap-4">
                 {filtered.map((teacher) => (
                   <div
-                    key={teacher.docId}
+                    key={teacher.docId || teacher.id || teacher.teacherId} // Fixed: Use the correct ID field
                     className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4 hover:shadow-md transition"
                   >
                     {/* Avatar */}
                     <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
                       {teacher.imageUrl
-                        ? <img src={teacher.imageUrl} alt="" className="w-full h-full object-cover" />
+                        ? <img src={teacher.imageUrl} alt={teacher.name} className="w-full h-full object-cover" />
                         : '👩‍🏫'}
                     </div>
 
@@ -325,12 +349,12 @@ console.log("Admin in TeacherPage:", admin);
                         title="Edit"
                       >✏️</button>
                       <button
-                        onClick={() => handleDelete(teacher.docId)}
-                        disabled={deleting === teacher.docId}
+                        onClick={() => handleDelete(teacher.docId || teacher.id || teacher.teacherId)}
+                        disabled={deleting === (teacher.docId || teacher.id || teacher.teacherId)}
                         className="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition disabled:opacity-50"
                         title="Delete"
                       >
-                        {deleting === teacher.docId
+                        {deleting === (teacher.docId || teacher.id || teacher.teacherId)
                           ? <span className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
                           : '🗑️'}
                       </button>
@@ -348,7 +372,7 @@ console.log("Admin in TeacherPage:", admin);
 
             {/* ── Personal Info ── */}
             <SectionCard title="👤 Personal Information">
-              <Field label="Full Name">
+              <Field label="Full Name *">
                 <Input icon="👤" placeholder="Teacher full name" value={form.name}
                   onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
               </Field>
@@ -365,7 +389,7 @@ console.log("Admin in TeacherPage:", admin);
                 </Field>
               </div>
 
-              <Field label="Email Address">
+              <Field label="Email Address *">
                 <Input icon="📧" placeholder="teacher@school.com" type="email"
                   value={form.email} onChange={(v) => setForm((f) => ({ ...f, email: v }))} />
               </Field>
@@ -403,6 +427,7 @@ console.log("Admin in TeacherPage:", admin);
 
               {/* Class Incharge toggle */}
               <button
+                type="button"
                 onClick={() => setForm((f) => ({ ...f, isClassIncharge: !f.isClassIncharge }))}
                 className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl border-2 transition text-sm font-semibold
                   ${form.isClassIncharge
@@ -427,6 +452,7 @@ console.log("Admin in TeacherPage:", admin);
                   return (
                     <button
                       key={subject}
+                      type="button"
                       onClick={() => toggleSubject(subject)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition
                         ${selected
@@ -465,7 +491,7 @@ console.log("Admin in TeacherPage:", admin);
             {/* ── Credentials (add only) ── */}
             {view === 'add' && (
               <SectionCard title="🔐 Login Credentials">
-                <Field label="Password">
+                <Field label="Password *">
                   <PasswordInput
                     placeholder="Min. 8 characters"
                     show={showPw}
@@ -474,7 +500,7 @@ console.log("Admin in TeacherPage:", admin);
                     onChange={(v) => setForm((f) => ({ ...f, password: v }))}
                   />
                 </Field>
-                <Field label="Confirm Password">
+                <Field label="Confirm Password *">
                   <PasswordInput
                     placeholder="Re-enter password"
                     show={showCpw}
@@ -493,6 +519,7 @@ console.log("Admin in TeacherPage:", admin);
                   {['active', 'inactive'].map((s) => (
                     <button
                       key={s}
+                      type="button"
                       onClick={() => setForm((f) => ({ ...f, status: s }))}
                       className={`flex-1 py-3 rounded-xl font-semibold text-sm border-2 transition
                         ${form.status === s

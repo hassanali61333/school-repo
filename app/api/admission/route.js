@@ -301,10 +301,17 @@ export async function POST(request) {
 // ═════════════════════════════════════════════════════════════════════════════
 // GET — Fetch all students of a school
 // ═════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════════
+// GET — Fetch all students of a school
+// ═════════════════════════════════════════════════════════════════════════════
 export async function GET(request) {
+  console.log("=== API GET /admission called ===");
+  
   try {
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get("schoolId");
+    
+    console.log("SchoolId from query:", schoolId);
 
     if (!schoolId) {
       return NextResponse.json(
@@ -313,28 +320,110 @@ export async function GET(request) {
       );
     }
 
-    const snapshot = await db
+    // Get ALL students first to see what's in the database
+    const allStudentsSnap = await db.collection("students").get();
+    console.log("Total students in database:", allStudentsSnap.size);
+    
+    // Log ALL students to see their schoolId values
+    const allStudentsList = [];
+    allStudentsSnap.forEach(doc => {
+      const data = doc.data();
+      allStudentsList.push({
+        id: doc.id,
+        schoolId: data.schoolId,
+        name: `${data.firstName} ${data.lastName || ''}`,
+        rollNo: data.rollNo
+      });
+    });
+    console.log("All students in DB:", JSON.stringify(allStudentsList, null, 2));
+    
+    // Method 1: Try with where clause
+    let snapshot = await db
       .collection("students")
       .where("schoolId", "==", schoolId)
       .get();
-
+    
+    console.log(`Students found with where clause:`, snapshot.size);
+    
+    // If no students found with where, try getting all and filter manually
     if (snapshot.empty) {
-      return NextResponse.json({ success: true, students: [], total: 0 });
+      console.log("No students found with where clause, trying manual filtering...");
+      
+      const manuallyFiltered = [];
+      allStudentsSnap.forEach(doc => {
+        const data = doc.data();
+        // Try different matching methods
+        if (data.schoolId === schoolId || 
+            String(data.schoolId) === String(schoolId) ||
+            (data.schoolId && data.schoolId.toString() === schoolId.toString())) {
+          manuallyFiltered.push({
+            id: doc.id,
+            ...data
+          });
+        }
+      });
+      
+      if (manuallyFiltered.length > 0) {
+        console.log(`Found ${manuallyFiltered.length} students via manual filter`);
+        
+        // Remove sensitive data
+        const students = manuallyFiltered.map(student => {
+          delete student.password;
+          if (student.parent?.password) delete student.parent.password;
+          return student;
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          students, 
+          total: students.length,
+          debug: {
+            method: "manual_filter",
+            totalInDB: allStudentsSnap.size,
+            requestedSchoolId: schoolId
+          }
+        });
+      }
+      
+      // If still no students found, return debug info
+      const uniqueSchoolIds = [...new Set(allStudentsList.map(s => s.schoolId).filter(id => id))];
+      console.log("Unique schoolIds in database:", uniqueSchoolIds);
+      
+      return NextResponse.json({ 
+        success: true, 
+        students: [], 
+        total: 0,
+        debug: {
+          totalInDB: allStudentsSnap.size,
+          availableSchoolIds: uniqueSchoolIds,
+          requestedSchoolId: schoolId,
+          allStudents: allStudentsList
+        }
+      });
     }
 
+    // Students found with where clause
     const students = snapshot.docs.map((doc) => {
       const data = { id: doc.id, ...doc.data() };
-      // Strip passwords before sending to client
       delete data.password;
       if (data.parent?.password) delete data.parent.password;
       return data;
     });
 
-    return NextResponse.json({ success: true, students, total: students.length });
+    return NextResponse.json({ 
+      success: true, 
+      students, 
+      total: students.length,
+      debug: {
+        method: "where_clause",
+        totalInDB: allStudentsSnap.size,
+        requestedSchoolId: schoolId
+      }
+    });
   } catch (error) {
     console.error("Admission GET error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to fetch students." },
+      { success: false, message: "Failed to fetch students: " + error.message },
       { status: 500 }
     );
   }

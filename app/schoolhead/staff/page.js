@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { addstaff ,getstaff,deletestaff,updatestaff} from '@/app/services/schoolService';
-import { setAdminID, setLoginAdmin, setloginuser, setuserId } from '@/app/store/userSlice';
+import { addstaff, getstaff, deletestaff, updatestaff } from '@/app/services/schoolService';
+import { setloginuser, setuserId } from '@/app/store/userSlice';
 import { useDispatch, useSelector } from 'react-redux';
 
 /* ── role options ─────────────────────────────────────── */
@@ -15,9 +15,17 @@ const ROLES = [
 ];
 
 const EMPTY_FORM = {
-  name: '', phone: '', cnic: '', salary: '', address: '',
+  fullName: '', 
+  phoneNumber: '', 
+  cnic: '', 
+  salary: '', 
+  address: '',
   joiningDate: new Date().toISOString().slice(0, 10),
-  email: '', password: '', confirmPassword: '', designation: 'Clerk / Office Staff',
+  email: '', 
+  password: '', 
+  confirmPassword: '', 
+  designation: 'Clerk / Office Staff',
+  status: 'active'
 };
 
 /* ── CNIC auto-formatter ──────────────────────────────── */
@@ -32,44 +40,35 @@ function formatCNIC(text) {
    MAIN PAGE
 ══════════════════════════════════════════════════════ */
 export default function StaffPage() {
-
-
-const dispatch = useDispatch();
-
+  const dispatch = useDispatch();
   const [staffList,   setStaffList]   = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [saving,      setSaving]      = useState(false);
-  const [deleting,    setDeleting]    = useState(null); // docId being deleted
-  const [view,        setView]        = useState('list'); // 'list' | 'add' | 'edit'
+  const [deleting,    setDeleting]    = useState(null);
+  const [view,        setView]        = useState('list');
   const [editTarget,  setEditTarget]  = useState(null);
   const [form,        setForm]        = useState(EMPTY_FORM);
   const [showPw,      setShowPw]      = useState(false);
   const [showCpw,     setShowCpw]     = useState(false);
-  const [toast,       setToast]       = useState(null); // { type:'success'|'error', msg }
+  const [toast,       setToast]       = useState(null);
   const [search,      setSearch]      = useState('');
     
- useEffect(() => {
-      const storedUser = localStorage.getItem("loginuser");
+  useEffect(() => {
+    const storedUser = localStorage.getItem("loginuser");
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      dispatch(setloginuser(user));
+      dispatch(setuserId(user.id));
+    }
+  }, [dispatch]);
   
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-  
-        dispatch(setloginuser(user));
-        dispatch(setuserId(user.id));
-      }
-    }, [dispatch]);
-    const admin = useSelector((state) => state.users.loginuser);
-    console.log("Admin in StaffPage:", admin);
-   
+  const admin = useSelector((state) => state.users.loginuser);
+  console.log("Admin in StaffPage:", admin);
 
   const schoolId  = admin?.schoolId || '';
   const adminId   = admin?.adminId || '';
   const headId    = admin?.id || '';
-  const schoolName= admin?.schoolName || 'Demo School';
-
- 
- 
-
+  const schoolName = admin?.schoolName || 'Demo School';
 
   /* ── toast helper ── */
   const showToast = (type, msg) => {
@@ -77,165 +76,213 @@ const dispatch = useDispatch();
     setTimeout(() => setToast(null), 3500);
   };
 
-
-
-  const openEdit = (member) => {
-  setEditTarget(member);
-
-  setForm({
-    docId: member.docId,
-    name: member.fullName || '',
-    phone: member.phoneNumber || '',
-    cnic: member.cnic || '',
-    salary: member.salary || '',
-    address: member.address || '',
-    joiningDate: member.joiningDate || '',
-    email: member.email || '',
-    designation: member.designation || '',
-    status: member.status || 'active',
-  });
-
-  setView('edit');
-};
-
-
-
-const handleUpdate = async () => {
-  setSaving(true);
-
-  try {
-    await updatestaff({
-      docId: form.docId,
-      name: form.name,
-      phone: form.phone,
-      cnic: form.cnic,
-      salary: form.salary,
-      address: form.address,
-      email: form.email,
-      designation: form.designation,
-      joiningDate: form.joiningDate,
-      status: form.status,
-    });
-
-    showToast("success", "Staff updated successfully");
-
-    fetchStaff();
-
-    setView("list");
-    setEditTarget(null);
-    setForm(EMPTY_FORM);
-
-  } catch (e) {
-    showToast("error", e.response?.data?.error || "Update failed");
-  } finally {
-    setSaving(false);
-  }
-};
-
-
-const fetchStaff = async () => {
+  /* ── Fetch Staff ── */
+  const fetchStaff = async () => {
     setLoadingList(true);     
-
     try {
       const res = await getstaff(schoolId);
       console.log("Fetched staff:", res.data);
       setStaffList(res.data.data || []);
     } catch (e) {
       showToast("error", "Failed to load staff list");
+      console.error("Fetch error:", e);
     } finally {
       setLoadingList(false);
     } 
   };
 
-useEffect(() => {
-  if (schoolId) {
-    fetchStaff();
-  }
-}, [admin?.schoolId]);
+  useEffect(() => {
+    if (schoolId) {
+      fetchStaff();
+    }
+  }, [admin?.schoolId]);
 
-
-  
-
-
-  /* ── open add form ── */
+  /* ── Open Add Form ── */
   const openAdd = () => {
     setForm(EMPTY_FORM);
     setEditTarget(null);
     setView('add');
   };
 
-
-
-
-const handleSave = async () => {
-  setSaving(true);
-
-  try {
-    // validation
-    if (form.password !== form.confirmPassword) {
-      showToast("error", "Passwords do not match");
-      setSaving(false);
-      return;
-    }
-
-    await addstaff({
-      ...form,
-      adminId,
-      headId,
-      schoolId,
-      schoolName,
+  /* ── Open Edit Form ── */
+  const openEdit = (member) => {
+    setEditTarget(member);
+    setForm({
+      docId: member.docId,
+      fullName: member.fullName || '',
+      phoneNumber: member.phoneNumber || '',
+      cnic: member.cnic || '',
+      salary: member.salary || '',
+      address: member.address || '',
+      joiningDate: member.joiningDate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      email: member.email || '',
+      designation: member.designation || '',
+      status: member.status || 'active',
     });
+    setView('edit');
+  };
 
-    showToast("success", "Staff registered successfully!");
-fetchStaff()
-    // reset form
-    setForm(EMPTY_FORM);
-    setView("list");
+  /* ── Save New Staff ── */
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // validation
+      if (!form.fullName) {
+        showToast("error", "Full name is required");
+        setSaving(false);
+        return;
+      }
+      if (!form.phoneNumber || form.phoneNumber.length !== 11 || !form.phoneNumber.startsWith('03')) {
+        showToast("error", "Invalid Pakistani phone number (03XXXXXXXXX)");
+        setSaving(false);
+        return;
+      }
+      if (!form.cnic || !/^\d{5}-\d{7}-\d{1}$/.test(form.cnic)) {
+        showToast("error", "Invalid CNIC format (XXXXX-XXXXXXX-X)");
+        setSaving(false);
+        return;
+      }
+      if (!form.salary) {
+        showToast("error", "Salary is required");
+        setSaving(false);
+        return;
+      }
+      if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        showToast("error", "Valid email is required");
+        setSaving(false);
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        showToast("error", "Passwords do not match");
+        setSaving(false);
+        return;
+      }
+      if (form.password && form.password.length < 8) {
+        showToast("error", "Password must be at least 8 characters");
+        setSaving(false);
+        return;
+      }
 
+      // Prepare payload with exact field names matching backend
+      const payload = {
+        fullName: form.fullName,
+        phoneNumber: form.phoneNumber,
+        cnic: form.cnic,
+        salary: Number(form.salary),
+        address: form.address,
+        joiningDate: form.joiningDate,
+        email: form.email,
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+        designation: form.designation,
+        adminId: adminId,
+        headId: headId,
+        schoolId: schoolId,
+        schoolName: schoolName,
+        status: 'active'
+      };
 
- 
+      console.log("Sending payload:", payload);
+      await addstaff(payload);
+      showToast("success", "Staff registered successfully!");
+      fetchStaff();
+      setForm(EMPTY_FORM);
+      setView("list");
+    } catch (e) {
+      console.error("Save error:", e);
+      showToast("error", e.response?.data?.error || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  } catch (e) {
-    showToast("error", e.response?.data?.error || "Save failed");
-  } finally {
-    setSaving(false);
-  }
-};
+  /* ── Update Staff ── */
+  const handleUpdate = async () => {
+    setSaving(true);
+    try {
+      // validation
+      if (!form.fullName) {
+        showToast("error", "Full name is required");
+        setSaving(false);
+        return;
+      }
+      if (!form.phoneNumber || form.phoneNumber.length !== 11 || !form.phoneNumber.startsWith('03')) {
+        showToast("error", "Invalid Pakistani phone number (03XXXXXXXXX)");
+        setSaving(false);
+        return;
+      }
+      if (!form.cnic || !/^\d{5}-\d{7}-\d{1}$/.test(form.cnic)) {
+        showToast("error", "Invalid CNIC format (XXXXX-XXXXXXX-X)");
+        setSaving(false);
+        return;
+      }
+      if (!form.salary) {
+        showToast("error", "Salary is required");
+        setSaving(false);
+        return;
+      }
+      if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        showToast("error", "Valid email is required");
+        setSaving(false);
+        return;
+      }
 
+      // Prepare payload with exact field names matching backend
+      const payload = {
+        docId: form.docId,
+        fullName: form.fullName,
+        phoneNumber: form.phoneNumber,
+        cnic: form.cnic,
+        salary: Number(form.salary),
+        address: form.address,
+        email: form.email,
+        designation: form.designation,
+        joiningDate: form.joiningDate,
+        status: form.status
+      };
 
-const handleDelete = async (docId) => {
+      console.log("Update payload:", payload);
+      await updatestaff(payload);
+      showToast("success", "Staff updated successfully");
+      fetchStaff();
+      setView("list");
+      setEditTarget(null);
+      setForm(EMPTY_FORM);
+    } catch (e) {
+      console.error("Update error:", e);
+      showToast("error", e.response?.data?.error || "Update failed");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  try{
-    setDeleting(docId);
-    await deletestaff(docId);
-    showToast("success", "Staff member deleted");
-    fetchStaff(); 
-
-  }
-  catch(e){
-    showToast("error", e.response?.data?.error || "Delete failed");
-  } finally{ 
-    setDeleting(null);
-  }
-
-
-
-}
-
- 
-
+  /* ── Delete Staff ── */
+  const handleDelete = async (docId) => {
+    if (!confirm("Are you sure you want to delete this staff member?")) return;
+    
+    try {
+      setDeleting(docId);
+      await deletestaff(docId);
+      showToast("success", "Staff member deleted");
+      fetchStaff();
+    } catch (e) {
+      console.error("Delete error:", e);
+      showToast("error", e.response?.data?.error || "Delete failed");
+    } finally { 
+      setDeleting(null);
+    }
+  };
 
   /* ── filtered list ── */
   const filtered = staffList.filter(s =>
     s.fullName?.toLowerCase().includes(search.toLowerCase()) ||
     s.designation?.toLowerCase().includes(search.toLowerCase()) ||
-    s.cnic?.includes(search)
+    s.cnic?.includes(search) ||
+    s.phoneNumber?.includes(search)
   );
 
- 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-
       {/* ── Toast ── */}
       {toast && (
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-white text-sm font-semibold transition-all
@@ -268,7 +315,6 @@ const handleDelete = async (docId) => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
-
         {/* ══════════════════════════════
             LIST VIEW
         ══════════════════════════════ */}
@@ -279,7 +325,7 @@ const handleDelete = async (docId) => {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
               <input
                 className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                placeholder="Search by name, role, or CNIC…"
+                placeholder="Search by name, role, CNIC, or phone…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -327,13 +373,13 @@ const handleDelete = async (docId) => {
 
                     {/* Actions */}
                     <div className="flex gap-2 flex-shrink-0">
-                     <button
-  onClick={() => openEdit(member)}
-  className="w-9 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition"
-  title="Edit"
->
-  ✏️
-</button>
+                      <button
+                        onClick={() => openEdit(member)}
+                        className="w-9 h-9 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition"
+                        title="Edit"
+                      >
+                        ✏️
+                      </button>
                       <button
                         onClick={() => handleDelete(member?.docId)}
                         disabled={deleting === (member.docId || member.id)}
@@ -357,7 +403,6 @@ const handleDelete = async (docId) => {
         ══════════════════════════════ */}
         {(view === 'add' || view === 'edit') && (
           <div className="space-y-6">
-
             {/* Role selector */}
             <div>
               <p className="text-sm font-bold text-slate-600 mb-3">Select Designation</p>
@@ -380,35 +425,55 @@ const handleDelete = async (docId) => {
 
             {/* Form card */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 space-y-4">
-
               {/* Full Name */}
               <Field label="Full Name">
-                <Input icon="👤" placeholder="Staff full name" value={form.name}
-                  onChange={v => setForm(f => ({ ...f, name: v }))} />
+                <Input 
+                  icon="👤" 
+                  placeholder="Staff full name" 
+                  value={form.fullName || ''}
+                  onChange={v => setForm(f => ({ ...f, fullName: v }))} 
+                />
               </Field>
 
               {/* Phone + CNIC */}
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Phone Number">
-                  <Input icon="📞" placeholder="03XXXXXXXXX" maxLength={11} inputMode="numeric"
-                    value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v.replace(/\D/g, '') }))} />
+                  <Input 
+                    icon="📞" 
+                    placeholder="03XXXXXXXXX" 
+                    maxLength={11} 
+                    inputMode="numeric"
+                    value={form.phoneNumber || ''} 
+                    onChange={v => setForm(f => ({ ...f, phoneNumber: v.replace(/\D/g, '') }))} 
+                  />
                 </Field>
                 <Field label="CNIC">
-                  <Input icon="🪪" placeholder="XXXXX-XXXXXXX-X" maxLength={15} inputMode="numeric"
-                    value={form.cnic} onChange={v => setForm(f => ({ ...f, cnic: formatCNIC(v) }))} />
+                  <Input 
+                    icon="🪪" 
+                    placeholder="XXXXX-XXXXXXX-X" 
+                    maxLength={15} 
+                    inputMode="numeric"
+                    value={form.cnic || ''} 
+                    onChange={v => setForm(f => ({ ...f, cnic: formatCNIC(v) }))} 
+                  />
                 </Field>
               </div>
 
               {/* Salary + Joining Date */}
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Salary (PKR)">
-                  <Input icon="💰" placeholder="e.g. 25000" inputMode="numeric"
-                    value={form.salary} onChange={v => setForm(f => ({ ...f, salary: v.replace(/\D/g, '') }))} />
+                  <Input 
+                    icon="💰" 
+                    placeholder="e.g. 25000" 
+                    inputMode="numeric"
+                    value={form.salary || ''} 
+                    onChange={v => setForm(f => ({ ...f, salary: v.replace(/\D/g, '') }))} 
+                  />
                 </Field>
                 <Field label="Joining Date">
                   <input
                     type="date"
-                    value={form.joiningDate}
+                    value={form.joiningDate || ''}
                     onChange={e => setForm(f => ({ ...f, joiningDate: e.target.value }))}
                     className="w-full h-12 border border-slate-200 rounded-xl px-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                   />
@@ -420,7 +485,7 @@ const handleDelete = async (docId) => {
                 <textarea
                   rows={3}
                   placeholder="Complete address…"
-                  value={form.address}
+                  value={form.address || ''}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                   className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 bg-slate-50 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
@@ -428,9 +493,28 @@ const handleDelete = async (docId) => {
 
               {/* Email */}
               <Field label="Email Address">
-                <Input icon="📧" placeholder="staff@example.com" type="email"
-                  value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} />
+                <Input 
+                  icon="📧" 
+                  placeholder="staff@example.com" 
+                  type="email"
+                  value={form.email || ''} 
+                  onChange={v => setForm(f => ({ ...f, email: v }))} 
+                />
               </Field>
+
+              {/* Status (only for edit) */}
+              {view === 'edit' && (
+                <Field label="Status">
+                  <select
+                    value={form.status || 'active'}
+                    onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                    className="w-full h-12 border border-slate-200 rounded-xl px-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </Field>
+              )}
 
               {/* Password (only required for add) */}
               {view === 'add' && (
@@ -440,7 +524,7 @@ const handleDelete = async (docId) => {
                       placeholder="Min. 8 characters"
                       show={showPw}
                       toggle={() => setShowPw(p => !p)}
-                      value={form.password}
+                      value={form.password || ''}
                       onChange={v => setForm(f => ({ ...f, password: v }))}
                     />
                   </Field>
@@ -449,7 +533,7 @@ const handleDelete = async (docId) => {
                       placeholder="Re-enter password"
                       show={showCpw}
                       toggle={() => setShowCpw(p => !p)}
-                      value={form.confirmPassword}
+                      value={form.confirmPassword || ''}
                       onChange={v => setForm(f => ({ ...f, confirmPassword: v }))}
                     />
                   </Field>
@@ -458,7 +542,7 @@ const handleDelete = async (docId) => {
 
               {/* Submit */}
               <button
-            onClick={view === 'add' ? handleSave : handleUpdate}
+                onClick={view === 'add' ? handleSave : handleUpdate}
                 disabled={saving}
                 className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 transition mt-2"
               >

@@ -40,7 +40,7 @@ export async function POST(req) {
     }
 
     // ===== EMAIL DUPLICATE CHECK across all collections =====
-    const collections = ["users", "Teacher", "students"];
+    const collections = ["users", "Teacher", "students", "head"];
     for (let col of collections) {
       const snap = await db.collection(col).where("email", "==", email).get();
       if (!snap.empty) {
@@ -98,7 +98,7 @@ export async function POST(req) {
       createdAt: new Date().toISOString(),
     };
 
-    await db.collection("users").doc(headId).set(newHead);
+    await db.collection("head").doc(headId).set(newHead);
 
     const { password: _, ...safeHead } = newHead;
 
@@ -134,7 +134,7 @@ export async function GET(req) {
     }
 
     const snap = await db
-      .collection("users")
+      .collection("head")
       .where("adminId", "==", adminId)
       .where("role", "==", "head")
       .get();
@@ -166,7 +166,7 @@ export async function DELETE(req) {
     const head = searchParams.get("headId");
     const headId = String(head).trim();
 
-    const headRef = db.collection("users").where("headId", "==", headId).where("role", "==", "head");
+    const headRef = db.collection("head").where("headId", "==", headId);
     const snap = await headRef.get();
 
     if (snap.empty) {
@@ -217,7 +217,7 @@ export async function PUT(req) {
       );
     }
 
-    const headRef = db.collection("users").doc(headId);
+    const headRef = db.collection("head").doc(headId);
     const headDoc = await headRef.get();
 
     if (!headDoc.exists) {
@@ -231,7 +231,7 @@ export async function PUT(req) {
 
     // ===== EMAIL DUPLICATE CHECK =====
     if (email && email !== oldData.email) {
-      const collections = ["users", "Teacher", "students"];
+      const collections = ["head", "Teacher", "students"];
 
       for (let col of collections) {
         const snap = await db

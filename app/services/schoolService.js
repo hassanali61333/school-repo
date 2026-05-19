@@ -165,6 +165,7 @@ export const createAdmission = (data) => {
 
 // GET ALL STUDENTS
 export const getStudents = (schoolId) => {
+  console.log("Service: Fetching students for schoolId:", schoolId);
   return api.get(`/admission?schoolId=${schoolId}`);
 };
 

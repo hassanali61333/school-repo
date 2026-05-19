@@ -1,6 +1,6 @@
 import admin, { db } from "@/lib/firebaseAdmin";
-import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -18,7 +18,7 @@ export async function POST(req) {
 
     // find user by email
     const userSnap = await db
-      .collection("users")
+      .collection("head")
       .where("email", "==", email)
       .limit(1)
       .get();
@@ -33,10 +33,8 @@ export async function POST(req) {
     const userDoc = userSnap.docs[0];
     const user = userDoc.data();
 
-    // compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
+    // compare password (plain text - NO HASHING)
+    if (password !== user.password) {
       return Response.json(
         { message: "Invalid password" },
         { status: 401 }
@@ -44,33 +42,27 @@ export async function POST(req) {
     }
 
     const cookieStore = await cookies();
-      cookieStore.set("role", user.role, {
-  httpOnly: true,
-  secure: true,
-  sameSite: "strict",
-  path: "/",
-});
+    cookieStore.set("role", user.role, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      path: "/",
+    });
     
     // success response
-
-
-
     return Response.json({
       message: "Login successful",
       user: {
         id: userDoc.id,
         name: user.name,
         email: user.email,
-         schoolId: user.schoolId || null,
-    schoolName: user.schoolName || null,
-    adminId: user.adminId || null,
+        schoolId: user.schoolId || null,
+        schoolName: user.schoolName || null,
+        adminId: user.adminId || null,
         role: user.role,
       },
     });
 
-
-
-    
   } catch (err) {
     return Response.json(
       {

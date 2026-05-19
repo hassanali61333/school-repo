@@ -1,9 +1,20 @@
-// app/api/addteacher/route.js
+// app/api/teacher/route.js
 
 import { db } from "@/lib/firebaseAdmin";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { checkEmailExists } from "@/lib/checkmail";
+
+/* =========================================
+   HELPER: Generate Teacher ID
+========================================= */
+function generateTeacherId() {
+  return `teacher-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+}
+
+/* =========================================
+   POST - Create new teacher
+========================================= */
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -32,27 +43,29 @@ export async function POST(req) {
       salary,
     } = body;
 
+    console.log("📝 Creating teacher:", { name, email, schoolId });
+
     /* =========================
        VALIDATION
     ========================= */
 
     if (!adminId || !headId || !schoolId) {
       return NextResponse.json(
-        { error: "Missing admin/head/school info" },
+        { success: false, error: "Missing admin/head/school info" },
         { status: 400 }
       );
     }
 
     if (!name?.trim()) {
       return NextResponse.json(
-        { error: "Teacher name is required" },
+        { success: false, error: "Teacher name is required" },
         { status: 400 }
       );
     }
 
     if (!email?.trim()) {
       return NextResponse.json(
-        { error: "Email is required" },
+        { success: false, error: "Email is required" },
         { status: 400 }
       );
     }
@@ -63,28 +76,28 @@ export async function POST(req) {
 
     if (!emailRegex.test(normalizedEmail)) {
       return NextResponse.json(
-        { error: "Invalid email address" },
+        { success: false, error: "Invalid email address" },
         { status: 400 }
       );
     }
 
     if (!password || password.length < 8) {
       return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
+        { success: false, error: "Password must be at least 8 characters" },
         { status: 400 }
       );
     }
 
     if (!Array.isArray(subjects) || subjects.length === 0) {
       return NextResponse.json(
-        { error: "At least one subject is required" },
+        { success: false, error: "At least one subject is required" },
         { status: 400 }
       );
     }
 
     if (!salary || Number(salary) <= 0) {
       return NextResponse.json(
-        { error: "Invalid salary" },
+        { success: false, error: "Invalid salary" },
         { status: 400 }
       );
     }
@@ -93,96 +106,32 @@ export async function POST(req) {
        GLOBAL EMAIL CHECK
     ========================= */
 
-    const collectionsToCheck = [
-      "users",
-      "user",
-      "heads",
-      "head",
-      "teachers",
-      "Teacher",
-      "students",
-    ];
-
     const emailCheckResult = await checkEmailExists(normalizedEmail);
 
     if (emailCheckResult.exists) {
       return NextResponse.json(
         {
+          success: false,
           error: emailCheckResult.message
         },
         { status: 409 }
       );
     }
 
-    for (const collectionName of collectionsToCheck) {
-      const snap = await db
-        .collection(collectionName)
-        .where("email", "==", normalizedEmail)
-        .get();
+    // Check in Teacher collection
+    const existingTeacher = await db
+      .collection("Teacher")
+      .where("email", "==", normalizedEmail)
+      .get();
 
-      if (!snap.empty) {
-        return NextResponse.json(
-          {
-            error: `Email already exists in ${collectionName}`,
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    // check parent.email in students
-    const studentSnap = await db.collection("students").get();
-
-    const parentExists = studentSnap.docs.some(
-      (doc) =>
-        doc.data()?.parent?.email?.toLowerCase() === normalizedEmail
-    );
-
-    if (parentExists) {
+    if (!existingTeacher.empty) {
       return NextResponse.json(
         {
-          error: "Email already exists in student parent records",
+          success: false,
+          error: "Email already exists in Teacher records",
         },
         { status: 409 }
       );
-    }
-
-    /* =========================
-       CLASS + SECTION + SUBJECT
-       CONFLICT CHECK
-    ========================= */
-
-    if (assignedClass && section && subjects.length > 0) {
-      const teacherSnap = await db
-        .collection("Teacher")
-        .where("schoolId", "==", schoolId)
-        .where("class", "==", assignedClass)
-        .where("section", "==", section)
-        .get();
-
-      const hasConflict = teacherSnap.docs.some((doc) => {
-        const data = doc.data();
-
-        const existingSubjects = Array.isArray(data.subjects)
-          ? data.subjects
-          : [];
-
-        return subjects.some((subject) =>
-          existingSubjects
-            .map((s) => s.toLowerCase())
-            .includes(subject.toLowerCase())
-        );
-      });
-
-      if (hasConflict) {
-        return NextResponse.json(
-          {
-            error:
-              "This class + section + subject combination already exists",
-          },
-          { status: 409 }
-        );
-      }
     }
 
     /* =========================
@@ -195,155 +144,132 @@ export async function POST(req) {
        SAVE TEACHER
     ========================= */
 
-    const docId = teacherId || `teacher-${Date.now()}`;
+    const docId = teacherId || generateTeacherId();
+    const currentTimestamp = new Date().toISOString();
 
     const teacherData = {
       docId,
       teacherId: docId,
-
       adminId,
       headId,
       schoolId,
       schoolName,
-
       role: "teacher",
-
       name: name.trim(),
       qualification: qualification || "",
-      contactNumber:
-        contactNumber?.replace(/\D/g, "") || "",
-
+      contactNumber: contactNumber?.replace(/\D/g, "") || "",
       email: normalizedEmail,
       password: hashedPassword,
-
-      imageUrl: imageUrl || "",
-
+      imageUrl: imageUrl || null,
       class: assignedClass || null,
       section: section || null,
-
-      subjects,
+      subjects: subjects,
       primarySubject: primarySubject || subjects[0],
-
       isClassIncharge: Boolean(isClassIncharge),
-
       salary: Number(salary),
-
       status: "active",
-
-      createdAt: new Date().toISOString(),
+      createdAt: currentTimestamp,
     };
 
     await db.collection("Teacher").doc(docId).set(teacherData);
 
-    /* =========================
-       RESPONSE
-    ========================= */
+    // Remove password from response
+    const { password: _, ...safeData } = teacherData;
 
     return NextResponse.json(
       {
         success: true,
         message: "Teacher added successfully",
-        data: teacherData,
+        data: { id: docId, ...safeData },
       },
       { status: 201 }
     );
   } catch (error) {
     console.error("ADD TEACHER ERROR:", error);
-
     return NextResponse.json(
       {
-        error: "Internal server error",
+        success: false,
+        error: "Internal server error: " + error.message,
       },
-      { status: 500 }
-    );
-  }
-}
-
-
-// app/api/addteacher/route.js
-
-
-export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-
-    const schoolId = searchParams.get("schoolId");
-
-    if (!schoolId) {
-      return NextResponse.json(
-        { error: "schoolId is required" },
-        { status: 400 }
-      );
-    }
-
-    const snap = await db
-      .collection("Teacher")
-      .where("schoolId", "==", schoolId)
-      .get();
-
-    const teachers = snap.docs.map((doc) => {
-      const data = doc.data();
-
-      // remove password
-      const { password, ...safeData } = data;
-
-      return safeData;
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: teachers,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.log("GET TEACHERS ERROR:", error);
-
-    return NextResponse.json(
-      { error: "Failed to fetch teachers" },
       { status: 500 }
     );
   }
 }
 
 /* =========================================
-   UPDATE TEACHER
+   GET - Fetch teachers by schoolId
+========================================= */
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const schoolId = searchParams.get("schoolId");
+
+    console.log("📋 Fetching teachers for schoolId:", schoolId);
+
+    if (!schoolId) {
+      return NextResponse.json(
+        { success: false, error: "schoolId is required" },
+        { status: 400 }
+      );
+    }
+
+    const snapshot = await db
+      .collection("Teacher")
+      .where("schoolId", "==", schoolId)
+      .get();
+
+    const teachers = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      // Remove password from response
+      const { password, ...safeData } = data;
+      return { id: doc.id, ...safeData };
+    });
+
+    console.log(`✅ Found ${teachers.length} teachers`);
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: teachers,
+        total: teachers.length,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("GET TEACHERS ERROR:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch teachers: " + error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/* =========================================
+   PUT - Update teacher
 ========================================= */
 export async function PUT(req) {
   try {
     const body = await req.json();
+    
+    // Support both docId and id from frontend
+    const docId = body.docId || body.id;
 
-    const {
-      docId,
-      name,
-      qualification,
-      contactNumber,
-      email,
-      imageUrl,
-      class: assignedClass,
-      section,
-      subjects,
-      primarySubject,
-      isClassIncharge,
-      salary,
-      status,
-    } = body;
+    console.log("✏️ Updating teacher with docId:", docId);
+    console.log("Update data:", body);
 
     if (!docId) {
       return NextResponse.json(
-        { error: "docId is required" },
+        { success: false, error: "docId is required" },
         { status: 400 }
       );
     }
 
     const teacherRef = db.collection("Teacher").doc(docId);
-
     const teacherSnap = await teacherRef.get();
 
     if (!teacherSnap.exists) {
       return NextResponse.json(
-        { error: "Teacher not found" },
+        { success: false, error: "Teacher not found" },
         { status: 404 }
       );
     }
@@ -351,27 +277,26 @@ export async function PUT(req) {
     const existingTeacher = teacherSnap.data();
 
     /* =========================
-       EMAIL CHECK
+       EMAIL CHECK (if changing)
     ========================= */
 
-    if (email) {
-      const normalizedEmail = email.trim().toLowerCase();
-
+    if (body.email && body.email !== existingTeacher.email) {
+      const normalizedEmail = body.email.trim().toLowerCase();
       const emailSnap = await db
         .collection("Teacher")
         .where("email", "==", normalizedEmail)
         .get();
 
-      const duplicate = emailSnap.docs.find(
-        (doc) => doc.id !== docId
-      );
+      const duplicate = emailSnap.docs.find((doc) => doc.id !== docId);
 
       if (duplicate) {
         return NextResponse.json(
-          { error: "Email already exists" },
+          { success: false, error: "Email already exists" },
           { status: 409 }
         );
       }
+      
+      body.email = normalizedEmail;
     }
 
     /* =========================
@@ -379,116 +304,97 @@ export async function PUT(req) {
     ========================= */
 
     const updateData = {
-      name: name || existingTeacher.name,
-      qualification:
-        qualification || existingTeacher.qualification,
-
-      contactNumber:
-        contactNumber?.replace(/\D/g, "") ||
-        existingTeacher.contactNumber,
-
-      email:
-        email?.trim().toLowerCase() ||
-        existingTeacher.email,
-
-      imageUrl:
-        imageUrl !== undefined
-          ? imageUrl
-          : existingTeacher.imageUrl,
-
-      class:
-        assignedClass !== undefined
-          ? assignedClass
-          : existingTeacher.class,
-
-      section:
-        section !== undefined
-          ? section
-          : existingTeacher.section,
-
-      subjects:
-        subjects || existingTeacher.subjects,
-
-      primarySubject:
-        primarySubject ||
-        existingTeacher.primarySubject,
-
-      isClassIncharge:
-        isClassIncharge !== undefined
-          ? isClassIncharge
-          : existingTeacher.isClassIncharge,
-
-      salary:
-        salary !== undefined
-          ? Number(salary)
-          : existingTeacher.salary,
-
-      status:
-        status || existingTeacher.status,
-
       updatedAt: new Date().toISOString(),
     };
 
+    // Only include fields that are provided
+    if (body.name !== undefined) updateData.name = body.name.trim();
+    if (body.qualification !== undefined) updateData.qualification = body.qualification;
+    if (body.contactNumber !== undefined) updateData.contactNumber = body.contactNumber.replace(/\D/g, "");
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
+    if (body.class !== undefined) updateData.class = body.class;
+    if (body.section !== undefined) updateData.section = body.section;
+    if (body.subjects !== undefined) updateData.subjects = body.subjects;
+    if (body.primarySubject !== undefined) updateData.primarySubject = body.primarySubject;
+    if (body.isClassIncharge !== undefined) updateData.isClassIncharge = Boolean(body.isClassIncharge);
+    if (body.salary !== undefined) updateData.salary = Number(body.salary);
+    if (body.status !== undefined) updateData.status = body.status;
+
+    console.log("Updating with data:", updateData);
+
     await teacherRef.update(updateData);
+
+    // Get updated teacher data
+    const updatedSnap = await teacherRef.get();
+    const updatedData = updatedSnap.data();
+    const { password: _, ...safeData } = updatedData;
 
     return NextResponse.json(
       {
         success: true,
         message: "Teacher updated successfully",
+        data: { id: docId, ...safeData },
       },
       { status: 200 }
     );
   } catch (error) {
-    console.log("UPDATE TEACHER ERROR:", error);
-
+    console.error("UPDATE TEACHER ERROR:", error);
     return NextResponse.json(
-      { error: "Failed to update teacher" },
+      { success: false, error: "Failed to update teacher: " + error.message },
       { status: 500 }
     );
   }
 }
 
 /* =========================================
-   DELETE TEACHER
+   DELETE - Remove teacher
 ========================================= */
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
+    let docId = searchParams.get("docId");
+    
+    // If docId not found, try 'id' parameter
+    if (!docId) {
+      docId = searchParams.get("id");
+    }
 
-    const docId = searchParams.get("docId");
+    console.log("🗑️ Deleting teacher with docId:", docId);
 
     if (!docId) {
       return NextResponse.json(
-        { error: "docId is required" },
+        { success: false, error: "docId is required" },
         { status: 400 }
       );
     }
 
     const teacherRef = db.collection("Teacher").doc(docId);
-
     const teacherSnap = await teacherRef.get();
 
     if (!teacherSnap.exists) {
       return NextResponse.json(
-        { error: "Teacher not found" },
+        { success: false, error: "Teacher not found" },
         { status: 404 }
       );
     }
 
+    const teacherData = teacherSnap.data();
+    
     await teacherRef.delete();
 
     return NextResponse.json(
       {
         success: true,
-        message: "Teacher deleted successfully",
+        message: `Teacher ${teacherData.name} deleted successfully`,
+        deletedDocId: docId,
       },
       { status: 200 }
     );
   } catch (error) {
-    console.log("DELETE TEACHER ERROR:", error);
-
+    console.error("DELETE TEACHER ERROR:", error);
     return NextResponse.json(
-      { error: "Failed to delete teacher" },
+      { success: false, error: "Failed to delete teacher: " + error.message },
       { status: 500 }
     );
   }
