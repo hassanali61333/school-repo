@@ -150,6 +150,7 @@ export default function TeacherPage() {
       setSaving(false);
     }
   };
+  console.log("hasn")
 
   /* ── update teacher ── */
   const handleUpdate = async () => {
