@@ -317,6 +317,7 @@ export default function StudentsPage() {
     });
     setShowModal(true);
   };
+  console.log("Students to display:", students);
 
   const filtered = students.filter(s =>
     (s.fullName || "").toLowerCase().includes(search.toLowerCase()) ||
