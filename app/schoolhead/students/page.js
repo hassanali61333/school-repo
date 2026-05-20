@@ -1,32 +1,93 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getStudents, updateStudent, deleteStudent, createAdmission } from "@/app/services/schoolService";
+import { getStudents, updateStudent, deleteStudent, createAdmission, getTeachers } from "@/app/services/schoolService";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useDispatch, useSelector } from "react-redux";
 import { setloginuser, setuserId } from "@/app/store/userSlice";
+import axios from "axios";
 
-const emptyForm = {
-  firstName: "",
-  lastName: "",
-  parentPhone: "",
-  rollNo: "",
-  className: "",
-  section: "",
-  gender: "",
-  address: "",
-  email: "",
-  parentName: "",
-  parentEmail: "",
-  dob: "",
-  group: "",
-  dueDay: "10",
-  fee: {
-    tuition: "",
-    monthly: "500",
-    admissionOneTime: "1000",
-    registration: "500",
-    security: "1000"
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const onlyDigits = (str) => String(str || "").replace(/\D/g, "");
+
+// ── Static Data ─────────────────────────────────────────────────────────────────
+const INITIAL_CLASSES = [
+  { id: "nursery", name: "Nursery" },
+  { id: "prep", name: "Prep" },
+  { id: "kg", name: "KG" },
+  { id: "1", name: "Class 1" },
+  { id: "2", name: "Class 2" },
+  { id: "3", name: "Class 3" },
+  { id: "4", name: "Class 4" },
+  { id: "5", name: "Class 5" },
+  { id: "6", name: "Class 6" },
+  { id: "7", name: "Class 7" },
+  { id: "8", name: "Class 8" },
+  { id: "9", name: "9th" },
+  { id: "10", name: "10th" },
+  { id: "11", name: "11th" },
+  { id: "12", name: "12th" },
+];
+
+const HIGH_CLASSES = ["9", "10", "11", "12"];
+
+const GROUPS_BY_CLASS = {
+  9: ["Science", "Arts", "Commerce"],
+  10: ["Science", "Arts", "Commerce"],
+  11: ["Pre-Eng", "Pre-Med", "Commerce", "ICS"],
+  12: ["Pre-Eng", "Pre-Med", "Commerce", "ICS"],
+};
+
+const MC = ["English", "Urdu", "Islamiyat", "Ethics", "Pakistan Studies"];
+
+const SUBJECTS_BY_CLASS = {
+  nursery: ["English Phonics", "Math Basics", "Urdu Nazra"],
+  prep: ["English", "Math", "Urdu", "General Knowledge"],
+  kg: ["English", "Math", "Urdu", "General Knowledge"],
+  1: ["English", "Urdu", "Math", "Islamiyat", "Computer"],
+  2: ["English", "Urdu", "Math", "Islamiyat", "Computer"],
+  3: ["English", "Urdu", "Math", "Science", "Islamiyat", "Computer"],
+  4: ["English", "Urdu", "Math", "Science", "Social Studies", "Computer"],
+  5: ["English", "Urdu", "Math", "Science", "Social Studies", "Computer"],
+  6: ["English", "Urdu", "Math", "General Science", "History", "Geography", "Computer"],
+  7: ["English", "Urdu", "Math", "General Science", "History", "Geography", "Computer"],
+  8: ["English", "Urdu", "Math", "General Science", "History", "Geography", "Computer"],
+};
+
+const SUBJECTS_9_10 = {
+  Science: [...MC, "Mathematics", "Physics", "Chemistry", "Biology", "Computer Science"],
+  Arts: [...MC, "General Mathematics", "General Science", "Civics", "Islamic History", "Home Economics", "Fine Arts"],
+  Commerce: [...MC, "Principles of Commerce", "Banking", "Accounting", "Business Math", "Economics"],
+};
+
+const SUBJECTS_11_12 = {
+  "Pre-Eng": [...MC, "Mathematics", "Physics", "Chemistry"],
+  "Pre-Med": [...MC, "Biology", "Physics", "Chemistry"],
+  Commerce: [...MC, "Principles of Accounting", "Principles of Economics", "Business Math", "Statistics"],
+  ICS: [...MC, "Computer Science", "Mathematics", "Physics"],
+};
+
+const DEFAULT_SECTIONS = ["A", "B", "C"];
+
+// ── Image Upload ────────────────────────────────────────────────────────────────
+const uploadImageToServer = async (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
+  try {
+    const res = await axios.post(
+      "https://futureittechnology.com/picuplode.php",
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" }, timeout: 30000 }
+    );
+    const raw =
+      typeof res.data === "string"
+        ? res.data.trim()
+        : res.data?.url || res.data?.imageUrl || res.data?.path || res.data?.data || null;
+    if (!raw) throw new Error("No filename returned");
+    return raw.split("/").pop();
+  } catch {
+    toast.warn("Image upload failed. Saving without photo.");
+    return null;
   }
 };
 
@@ -35,11 +96,31 @@ export default function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editStudent, setEditStudent] = useState(null);
-  const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
+  const [fetchingStudents, setFetchingStudents] = useState(false);
+  
+  // Modal states
+  const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
+  
+  // New Class State
+  const [newClassName, setNewClassName] = useState("");
+  const [newClassId, setNewClassId] = useState("");
+  const [isHighClass, setIsHighClass] = useState(false);
+  
+  // New Section State
+  const [newSectionName, setNewSectionName] = useState("");
+  const [selectedClassForSection, setSelectedClassForSection] = useState("");
+  
+  // New Subject State
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [selectedClassForSubject, setSelectedClassForSubject] = useState("");
+  const [selectedGroupForSubject, setSelectedGroupForSubject] = useState("");
   
   // State for user data
   const [schoolId, setSchoolId] = useState("");
@@ -48,7 +129,52 @@ export default function StudentsPage() {
   const [headId, setHeadId] = useState("");
   const [teacherId, setTeacherId] = useState("");
 
+  // Teachers
+  const [teachers, setTeachers] = useState([]);
+  const [teachersLoading, setTeachersLoading] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+
+  // Academic - Dynamic data
+  const [classes, setClasses] = useState(INITIAL_CLASSES);
+  const [customSubjects, setCustomSubjects] = useState({});
+  const [extraSections, setExtraSections] = useState({});
+  
+  // Image
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+  
+  // Custom subject for current selection
+  const [customSubject, setCustomSubject] = useState("");
+  const [extraSubjects, setExtraSubjects] = useState([]);
+
   const admin = useSelector((s) => s.users.loginuser);
+
+  const emptyForm = {
+    firstName: "",
+    lastName: "",
+    parentPhone: "",
+    rollNo: "",
+    className: "",
+    section: "",
+    gender: "",
+    address: "",
+    email: "",
+    parentName: "",
+    parentEmail: "",
+    dob: "",
+    group: "",
+    selectedSubjects: [],
+    dueDay: "10",
+    fee: {
+      tuition: "",
+      monthly: "500",
+      admissionOneTime: "1000",
+      registration: "500",
+      security: "1000"
+    }
+  };
+
+  const [formData, setFormData] = useState(emptyForm);
 
   // ── Load user data from localStorage and Redux ─────────────────────────────────
   useEffect(() => {
@@ -59,41 +185,61 @@ export default function StudentsPage() {
         dispatch(setloginuser(userData));
         dispatch(setuserId(userData.id));
         
-        // Set all IDs from user data
         setSchoolId(userData.schoolId || "");
         setSchoolName(userData.schoolName || "");
         setAdminId(userData.adminId || "");
         setHeadId(userData.id || userData.headId || "");
         setTeacherId(userData.teacherId || "");
         
-        // Also store in localStorage for backup
-        if (userData.schoolId) localStorage.setItem("schoolId", userData.schoolId);
-        if (userData.adminId) localStorage.setItem("adminId", userData.adminId);
-        if (userData.headId) localStorage.setItem("headId", userData.headId);
-        if (userData.teacherId) localStorage.setItem("teacherId", userData.teacherId);
-        if (userData.schoolName) localStorage.setItem("schoolName", userData.schoolName);
+        // Load saved custom data from localStorage
+        const savedClasses = localStorage.getItem(`classes_${userData.schoolId}`);
+        if (savedClasses) {
+          setClasses(JSON.parse(savedClasses));
+        } else {
+          setClasses(INITIAL_CLASSES);
+        }
         
-        console.log("User data loaded:", {
-          schoolId: userData.schoolId,
-          adminId: userData.adminId,
-          headId: userData.headId,
-          teacherId: userData.teacherId
-        });
+        const savedSections = localStorage.getItem(`sections_${userData.schoolId}`);
+        if (savedSections) {
+          setExtraSections(JSON.parse(savedSections));
+        }
+        
+        const savedSubjects = localStorage.getItem(`subjects_${userData.schoolId}`);
+        if (savedSubjects) {
+          setCustomSubjects(JSON.parse(savedSubjects));
+        }
       } catch (err) {
         console.error("Error parsing user data:", err);
       }
     }
   }, [dispatch]);
 
-  // Also update from Redux when it changes
   useEffect(() => {
     if (admin) {
       if (admin.schoolId) setSchoolId(admin.schoolId);
       if (admin.adminId) setAdminId(admin.adminId);
       if (admin.headId) setHeadId(admin.headId);
       if (admin.schoolName) setSchoolName(admin.schoolName);
+      if (admin.teacherId) setTeacherId(admin.teacherId);
     }
   }, [admin]);
+
+  // ── Fetch Teachers ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!schoolId) return;
+    const fetchTeachers = async () => {
+      setTeachersLoading(true);
+      try {
+        const response = await getTeachers(schoolId);
+        setTeachers(response?.data?.data || []);
+      } catch (err) {
+        toast.error(err?.response?.data?.message || err.message);
+      } finally {
+        setTeachersLoading(false);
+      }
+    };
+    fetchTeachers();
+  }, [schoolId]);
 
   // ── Fetch Students ──────────────────────────────────────────────────────────
   const fetchStudents = async () => {
@@ -103,13 +249,11 @@ export default function StudentsPage() {
       return;
     }
     
+    setFetchingStudents(true);
     try {
       setLoading(true);
       setError("");
-      console.log("Fetching students for schoolId:", schoolId);
-      
       const response = await getStudents(schoolId);
-      console.log("API Response:", response.data);
       
       if (response.data.success) {
         const transformedStudents = response.data.students.map(student => ({
@@ -131,14 +275,14 @@ export default function StudentsPage() {
           status: student.status,
           fee: student.fee || {},
           parent: student.parent,
-          dueDay: student.dueDay || "10"
+          dueDay: student.dueDay || "10",
+          selectedSubjects: student.selectedSubjects || student.subjects || []
         }));
         
-        console.log(`Transformed ${transformedStudents.length} students`);
         setStudents(transformedStudents);
         
         if (transformedStudents.length === 0) {
-          toast.info("No students found for this school");
+          console.log("No students found for this school");
         }
       } else {
         setError(response.data.message || "Failed to fetch students");
@@ -151,49 +295,219 @@ export default function StudentsPage() {
       toast.error(errorMsg);
     } finally {
       setLoading(false);
+      setFetchingStudents(false);
     }
   };
 
-  // Fetch students when schoolId is available
   useEffect(() => {
     if (schoolId) {
       fetchStudents();
     }
   }, [schoolId]);
 
-  // ── Validation Function ──────────────────────────────────────────────────────
-  const validatePayload = (payload, isUpdate = false) => {
-    const errors = [];
+  // ── Derived values for subjects ────────────────────────────────────────────
+  const isHighClassSelected = HIGH_CLASSES.includes(formData.className);
 
-    if (!payload.studentEmail && !isUpdate) {
-      errors.push("Valid student email required");
+  const getAvailableSubjects = () => {
+    let subjects = [];
+    
+    if (!formData.className) return [];
+    
+    if (!isHighClassSelected) {
+      subjects = [...(SUBJECTS_BY_CLASS[formData.className] || [])];
+    } else if (formData.group) {
+      if (formData.className === "9" || formData.className === "10") {
+        subjects = [...(SUBJECTS_9_10[formData.group] || [])];
+      } else {
+        subjects = [...(SUBJECTS_11_12[formData.group] || [])];
+      }
     }
-    if (payload.studentEmail && !payload.studentEmail.includes('@')) {
-      errors.push("Valid student email required");
+    
+    const classKey = `${formData.className}_${formData.group || 'nogroup'}`;
+    if (customSubjects[classKey]) {
+      subjects = [...subjects, ...customSubjects[classKey]];
     }
-    if (!payload.className) errors.push("Class is required");
-    if (!payload.section) errors.push("Section is required");
-    if (!payload.selectedSubjects || payload.selectedSubjects.length === 0) {
-      errors.push("Select at least one subject");
+    
+    if (extraSubjects.length > 0) {
+      subjects = [...subjects, ...extraSubjects];
     }
-    if (!payload.monthlyFee || parseFloat(payload.monthlyFee) <= 0) {
-      errors.push("Monthly fee must be > 0");
-    }
-    if (!payload.dueDay || payload.dueDay < 1 || payload.dueDay > 28) {
-      errors.push("Due day must be 1–28");
-    }
+    
+    return subjects;
+  };
 
-    if (errors.length > 0) {
-      toast.error(errors.join(" | "));
-      return false;
+  const availableSubjects = getAvailableSubjects();
+
+  const getAvailableSections = () => {
+    const sections = [...DEFAULT_SECTIONS];
+    if (extraSections[formData.className]) {
+      sections.push(...extraSections[formData.className]);
     }
-    return true;
+    return sections;
+  };
+
+  const availableSections = getAvailableSections();
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleClassChange = (value) => {
+    setFormData({ 
+      ...formData, 
+      className: value, 
+      group: "", 
+      section: "",
+      selectedSubjects: [] 
+    });
+    setExtraSubjects([]);
+  };
+
+  const handleGroupChange = (value) => {
+    setFormData({ ...formData, group: value, selectedSubjects: [] });
+    setExtraSubjects([]);
+  };
+
+  const toggleSubject = (subj) => {
+    const currentSubjects = formData.selectedSubjects || [];
+    setFormData({
+      ...formData,
+      selectedSubjects: currentSubjects.includes(subj) 
+        ? currentSubjects.filter(s => s !== subj) 
+        : [...currentSubjects, subj]
+    });
+  };
+
+  const addCustomSubject = () => {
+    const val = customSubject.trim();
+    if (!val) return;
+    const formatted = val[0].toUpperCase() + val.slice(1);
+    if (availableSubjects.some(s => s.toLowerCase() === formatted.toLowerCase())) {
+      toast.warn(`"${formatted}" already exists.`);
+      return;
+    }
+    setExtraSubjects(prev => [...prev, formatted]);
+    setCustomSubject("");
+  };
+
+  // Add New Class
+  const handleAddNewClass = () => {
+    if (!newClassName.trim()) {
+      toast.error("Please enter class name");
+      return;
+    }
+    if (!newClassId.trim()) {
+      toast.error("Please enter class ID");
+      return;
+    }
+    
+    const newClass = {
+      id: newClassId.toLowerCase(),
+      name: newClassName.trim()
+    };
+    
+    const updatedClasses = [...classes, newClass];
+    setClasses(updatedClasses);
+    localStorage.setItem(`classes_${schoolId}`, JSON.stringify(updatedClasses));
+    
+    toast.success(`Class "${newClassName}" added successfully!`);
+    setShowAddClassModal(false);
+    setNewClassName("");
+    setNewClassId("");
+    setIsHighClass(false);
+  };
+
+  // Add New Section
+  const handleAddNewSection = () => {
+    if (!selectedClassForSection) {
+      toast.error("Please select a class first");
+      return;
+    }
+    if (!newSectionName.trim()) {
+      toast.error("Please enter section name");
+      return;
+    }
+    
+    const formattedSection = newSectionName.trim().toUpperCase();
+    const currentSections = extraSections[selectedClassForSection] || [];
+    
+    if (currentSections.includes(formattedSection)) {
+      toast.warn(`Section "${formattedSection}" already exists for this class`);
+      return;
+    }
+    
+    const updatedSections = {
+      ...extraSections,
+      [selectedClassForSection]: [...currentSections, formattedSection]
+    };
+    
+    setExtraSections(updatedSections);
+    localStorage.setItem(`sections_${schoolId}`, JSON.stringify(updatedSections));
+    
+    toast.success(`Section "${formattedSection}" added for class ${selectedClassForSection}`);
+    setShowAddSectionModal(false);
+    setNewSectionName("");
+    setSelectedClassForSection("");
+  };
+
+  // Add New Subject
+  const handleAddNewSubject = () => {
+    if (!selectedClassForSubject) {
+      toast.error("Please select a class");
+      return;
+    }
+    if (!newSubjectName.trim()) {
+      toast.error("Please enter subject name");
+      return;
+    }
+    
+    const classKey = `${selectedClassForSubject}_${selectedGroupForSubject || 'nogroup'}`;
+    const currentSubjects = customSubjects[classKey] || [];
+    const formattedSubject = newSubjectName.trim();
+    
+    if (currentSubjects.includes(formattedSubject)) {
+      toast.warn(`Subject "${formattedSubject}" already exists for this class/group`);
+      return;
+    }
+    
+    const updatedSubjects = {
+      ...customSubjects,
+      [classKey]: [...currentSubjects, formattedSubject]
+    };
+    
+    setCustomSubjects(updatedSubjects);
+    localStorage.setItem(`subjects_${schoolId}`, JSON.stringify(updatedSubjects));
+    
+    toast.success(`Subject "${formattedSubject}" added`);
+    setShowAddSubjectModal(false);
+    setNewSubjectName("");
+    setSelectedClassForSubject("");
+    setSelectedGroupForSubject("");
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be less than 2MB");
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result);
+    reader.readAsDataURL(file);
   };
 
   // ── ADD / UPDATE STUDENT ──────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!formData.firstName || !formData.parentPhone || !formData.rollNo || !formData.className) {
-      toast.warning("First Name, Phone, Roll No aur Class zaroor bharo");
+      toast.warning("Please fill all required fields");
+      return;
+    }
+
+    if (!editStudent && (!formData.selectedSubjects || formData.selectedSubjects.length === 0)) {
+      toast.warning("Please select at least one subject");
+      return;
+    }
+
+    if (!formData.section) {
+      toast.warning("Please select a section");
       return;
     }
 
@@ -205,31 +519,27 @@ export default function StudentsPage() {
     setSaving(true);
     
     try {
+      let imageUrl = null;
+      if (imageFile) {
+        imageUrl = await uploadImageToServer(imageFile);
+      }
+
       if (editStudent) {
-        // UPDATE PAYLOAD
         const updatePayload = {
           studentId: editStudent.id,
           schoolId: schoolId,
-          
-          // Student basic info
           firstName: formData.firstName,
           lastName: formData.lastName,
           rollNo: formData.rollNo,
           gender: formData.gender,
           dob: formData.dob || "2000-01-01",
           studentEmail: formData.email || `${formData.firstName.toLowerCase()}.${formData.lastName.toLowerCase()}@school.com`,
-          
-          // Class & Section
           className: formData.className,
           selectedClass: formData.className,
           section: formData.section,
           selectedSection: formData.section,
-          group: formData.group || "General",
-          
-          // Subjects (at least one required)
-          selectedSubjects: ["Mathematics"],
-          
-          // Parent info
+          group: formData.group || null,
+          selectedSubjects: formData.selectedSubjects,
           parent: {
             name: formData.parentName,
             phone: formData.parentPhone,
@@ -237,48 +547,33 @@ export default function StudentsPage() {
             password: "password123",
             address: formData.address || "Address not provided"
           },
-          
-          // Fee structure
-          admissionFee: formData.fee.admissionOneTime || "1000",
-          monthlyFee: formData.fee.monthly || "500",
-          registrationFee: formData.fee.registration || "500",
-          securityFee: formData.fee.security || "1000",
-          
-          // Payment settings
-          dueDay: formData.dueDay || "10",
+          admissionFee: parseInt(formData.fee.admissionOneTime) || 0,
+          monthlyFee: parseInt(formData.fee.monthly) || 0,
+          dueDay: parseInt(formData.dueDay) || 10,
           autoReminder: true,
-          reminderDaysBefore: "3",
-          notifyVia: "SMS"
+          reminderDaysBefore: 3,
+          notifyVia: "SMS",
+          imageUrl: imageUrl,
+          teacherId: selectedTeacher?.teacherId || selectedTeacher?.id || teacherId
         };
         
-        // Validate before sending
-        if (!validatePayload(updatePayload, true)) {
-          setSaving(false);
-          return;
-        }
-        
-        console.log("Update payload:", updatePayload);
         const response = await updateStudent(updatePayload);
         
         if (response.data.success) {
           toast.success("Student updated successfully!");
           await fetchStudents();
           setShowModal(false);
-          setFormData(emptyForm);
-          setEditStudent(null);
+          resetForm();
         } else {
           throw new Error(response.data.message);
         }
       } else {
-        // CREATE PAYLOAD
         const createPayload = {
           adminId: adminId,
-          headId: headId,
+          headId: headId || admin?.id,
           schoolId: schoolId,
           schoolName: schoolName || "Knowledge School",
-          teacherId: teacherId,
-          
-          // Student basic info
+          teacherId: selectedTeacher?.teacherId || selectedTeacher?.id || teacherId || admin?.teacherId,
           firstName: formData.firstName,
           lastName: formData.lastName,
           rollNo: formData.rollNo,
@@ -286,18 +581,12 @@ export default function StudentsPage() {
           dob: formData.dob || "2000-01-01",
           studentEmail: formData.email || `${formData.firstName.toLowerCase()}.${formData.lastName.toLowerCase()}@school.com`,
           studentPassword: "password123",
-          
-          // Class & Section
           className: formData.className,
           selectedClass: formData.className,
           section: formData.section,
           selectedSection: formData.section,
-          group: formData.group || "General",
-          
-          // Subjects (at least one required)
-          selectedSubjects: ["Mathematics"],
-          
-          // Parent info
+          group: formData.group || null,
+          selectedSubjects: formData.selectedSubjects,
           parent: {
             name: formData.parentName,
             phone: formData.parentPhone,
@@ -305,25 +594,14 @@ export default function StudentsPage() {
             password: "password123",
             address: formData.address || "Address not provided"
           },
-          
-          // Fee structure
-          admissionFee: formData.fee.admissionOneTime || "1000",
-          monthlyFee: formData.fee.monthly || "500",
-          registrationFee: formData.fee.registration || "500",
-          securityFee: formData.fee.security || "1000",
-          
-          // Payment settings
-          dueDay: formData.dueDay || "10",
+          admissionFee: parseInt(formData.fee.admissionOneTime) || 0,
+          monthlyFee: parseInt(formData.fee.monthly) || 0,
+          dueDay: parseInt(formData.dueDay) || 10,
           autoReminder: true,
-          reminderDaysBefore: "3",
-          notifyVia: "SMS"
+          reminderDaysBefore: 3,
+          notifyVia: "SMS",
+          imageUrl: imageUrl
         };
-        
-        // Validate before sending
-        if (!validatePayload(createPayload)) {
-          setSaving(false);
-          return;
-        }
         
         console.log("Create payload:", createPayload);
         const response = await createAdmission(createPayload);
@@ -332,7 +610,7 @@ export default function StudentsPage() {
           toast.success("Student added successfully!");
           await fetchStudents();
           setShowModal(false);
-          setFormData(emptyForm);
+          resetForm();
         } else {
           throw new Error(response.data.message);
         }
@@ -346,12 +624,21 @@ export default function StudentsPage() {
     }
   };
 
+  const resetForm = () => {
+    setFormData(emptyForm);
+    setImageFile(null);
+    setImagePreview("");
+    setExtraSubjects([]);
+    setSelectedTeacher(null);
+    setCustomSubject("");
+  };
+
   // ── DELETE STUDENT ──────────────────────────────────────────────────────────
   const handleDelete = async (id, studentName) => {
-    if (!confirm(`Are you sure you want to delete ${studentName}? This will also delete all related data.`)) return;
+    if (!confirm(`Are you sure you want to delete ${studentName}?`)) return;
     
+    setDeletingId(id);
     try {
-      console.log("Deleting student with ID:", id);
       const response = await deleteStudent(id);
       
       if (response.data.success) {
@@ -362,19 +649,26 @@ export default function StudentsPage() {
       }
     } catch (err) {
       console.error("Error deleting student:", err);
-      const errorMessage = err.response?.data?.message || err.message || "Failed to delete student";
-      toast.error(errorMessage);
+      toast.error(err.response?.data?.message || err.message || "Failed to delete student");
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const openAdd = () => {
     setEditStudent(null);
-    setFormData(emptyForm);
+    resetForm();
     setShowModal(true);
   };
 
   const openEdit = (s) => {
     console.log("Editing student:", s);
+    
+    let subjects = s.selectedSubjects || [];
+    if (!Array.isArray(subjects)) {
+      subjects = [];
+    }
+    
     setEditStudent(s);
     setFormData({
       firstName: s.firstName || "",
@@ -390,6 +684,7 @@ export default function StudentsPage() {
       parentEmail: s.parentEmail || s.parent?.email || "",
       dob: s.dob || "",
       group: s.group || "",
+      selectedSubjects: subjects,
       dueDay: s.dueDay || "10",
       fee: {
         tuition: s.fee?.tuition || "",
@@ -399,6 +694,7 @@ export default function StudentsPage() {
         security: s.fee?.security || "1000"
       }
     });
+    
     setShowModal(true);
   };
 
@@ -410,18 +706,18 @@ export default function StudentsPage() {
     (s.parentPhone || "").includes(search)
   );
 
+  const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm";
+  const labelCls = "block text-sm font-medium text-gray-700 mb-1";
+
+  // Loading Spinner Component
+  const LoadingSpinner = () => (
+    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+  );
+
   if (loading && !schoolId) {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="text-gray-500">Loading user data...</div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-96">
-        <div className="text-gray-500">Loading students...</div>
       </div>
     );
   }
@@ -439,12 +735,7 @@ export default function StudentsPage() {
               School: {schoolName || "Loading..."} | ID: {schoolId}
             </p>
           </div>
-          <button
-            onClick={openAdd}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
-          >
-            <span className="text-xl">+</span> Add New Student
-          </button>
+       
         </div>
 
         {/* Search Bar */}
@@ -458,30 +749,7 @@ export default function StudentsPage() {
           />
         </div>
 
-        {/* Debug Info */}
-        {students.length === 0 && !error && !loading && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              ℹ️ No students found. School ID: {schoolId}
-              <br />
-              <button onClick={fetchStudents} className="underline mt-1 hover:text-blue-900">
-                Click here to retry fetching
-              </button>
-            </p>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">
-              ❌ Error: {error}
-              <button onClick={fetchStudents} className="ml-3 underline hover:text-red-800">
-                Retry
-              </button>
-            </p>
-          </div>
-        )}
+      
 
         {/* Students Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
@@ -494,16 +762,23 @@ export default function StudentsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Parent Name</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Class</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-
               <tbody>
-                {filtered.length === 0 ? (
+                {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={7} className="px-4 py-12 text-center">
+                      <div className="flex justify-center items-center gap-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+                        <span className="text-gray-500">Loading students...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
                       {search ? "No matching students found" : "No students found"}
                     </td>
                   </tr>
@@ -517,12 +792,9 @@ export default function StudentsPage() {
                         {s.className} {s.section && `- ${s.section}`}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{s.parentPhone}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{s.email || "-"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                          s.status === "active" 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-red-100 text-red-800"
+                          s.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                         }`}>
                           {s.status || "active"}
                         </span>
@@ -531,17 +803,24 @@ export default function StudentsPage() {
                         <div className="flex gap-2">
                           <button 
                             onClick={() => openEdit(s)} 
-                            className="px-3 py-1.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm transition-colors"
-                            title="Edit Student"
+                            disabled={saving}
+                            className="px-3 py-1.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             ✏️ Edit
                           </button>
                           <button 
                             onClick={() => handleDelete(s.id, s.fullName)} 
-                            className="px-3 py-1.5 rounded-md border border-red-200 bg-white hover:bg-red-50 text-sm text-red-600 transition-colors"
-                            title="Delete Student"
+                            disabled={deletingId === s.id}
+                            className="px-3 py-1.5 rounded-md border border-red-200 bg-white hover:bg-red-50 text-sm text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                           >
-                            🗑️ Delete
+                            {deletingId === s.id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                                Deleting...
+                              </>
+                            ) : (
+                              "🗑️ Delete"
+                            )}
                           </button>
                         </div>
                       </td>
@@ -559,238 +838,272 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      {/* MODAL - Add/Edit Student */}
+      {/* MODAL - Add/Edit Student with Full Form */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl w-full max-w-4xl my-8">
             <div className="p-6 border-b sticky top-0 bg-white z-10">
               <h2 className="text-xl font-semibold text-gray-900">
                 {editStudent ? "Edit Student" : "Add New Student"}
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Fill in all required fields (*)
-              </p>
             </div>
 
-            {/* Modal Body - Form */}
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Student Information Section */}
-                <div className="col-span-2">
-                  <h3 className="font-semibold text-gray-700 mb-2 border-b pb-1">Student Information</h3>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-6">
+                {/* Teacher Incharge */}
+                <div>
+                  <label className={labelCls}>Teacher Incharge</label>
+                  <select
+                    value={selectedTeacher?.teacherId || selectedTeacher?.id || ""}
+                    onChange={(e) => {
+                      const t = teachers.find(t => (t.teacherId || t.id) === e.target.value);
+                      setSelectedTeacher(t || null);
+                    }}
+                    className={inputCls}
+                    disabled={teachersLoading}
+                  >
+                    <option value="">Select Teacher</option>
+                    {teachers.map(t => {
+                      const tid = t.teacherId || t.id;
+                      return <option key={tid} value={tid}>{t.name || t.teacherName}</option>;
+                    })}
+                  </select>
+                  {teachersLoading && (
+                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500"></div>
+                      Loading teachers...
+                    </div>
+                  )}
                 </div>
 
-                <input
-                  type="text"
-                  placeholder="First Name *"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                <input
-                  type="text"
-                  placeholder="Last Name"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Roll No *"
-                  value={formData.rollNo}
-                  onChange={(e) => setFormData({ ...formData, rollNo: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                <input
-                  type="text"
-                  placeholder="Class * (e.g., 10, 11, 12)"
-                  value={formData.className}
-                  onChange={(e) => setFormData({ ...formData, className: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                <input
-                  type="text"
-                  placeholder="Section * (e.g., A, B, C)"
-                  value={formData.section}
-                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                <input
-                  type="text"
-                  placeholder="Group (Science/Commerce/Arts)"
-                  value={formData.group}
-                  onChange={(e) => setFormData({ ...formData, group: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-
-                <select
-                  value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-
-                <input
-                  type="date"
-                  placeholder="Date of Birth"
-                  value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-
-                <input
-                  type="email"
-                  placeholder="Student Email *"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                {/* Parent Information Section */}
-                <div className="col-span-2 mt-4">
-                  <h3 className="font-semibold text-gray-700 mb-2 border-b pb-1">Parent Information</h3>
+                {/* Student Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>First Name *</label>
+                    <input type="text" value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Last Name</label>
+                    <input type="text" value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} className={inputCls} />
+                  </div>
                 </div>
 
-                <input
-                  type="text"
-                  placeholder="Parent Name *"
-                  value={formData.parentName}
-                  onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                <input
-                  type="tel"
-                  placeholder="Parent Phone *"
-                  value={formData.parentPhone}
-                  onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                <input
-                  type="email"
-                  placeholder="Parent Email"
-                  value={formData.parentEmail}
-                  onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-
-                <textarea
-                  placeholder="Address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  rows="2"
-                />
-
-                {/* Fee Structure Section */}
-                <div className="col-span-2 mt-4">
-                  <h3 className="font-semibold text-gray-700 mb-2 border-b pb-1">Fee Structure</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Roll Number *</label>
+                    <input type="text" value={formData.rollNo} onChange={(e) => setFormData({...formData, rollNo: onlyDigits(e.target.value)})} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Gender</label>
+                    <select value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})} className={inputCls}>
+                      <option value="">Select</option>
+                      <option>Male</option>
+                      <option>Female</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div className="text-sm text-amber-600 col-span-2 -mt-2">
-                  ⚠️ Monthly fee must be greater than 0
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Date of Birth</label>
+                    <input type="date" value={formData.dob} onChange={(e) => setFormData({...formData, dob: e.target.value})} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Profile Photo</label>
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm" />
+                    {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 h-16 w-16 object-cover rounded-lg border" />}
+                  </div>
                 </div>
 
-                <input
-                  type="number"
-                  placeholder="Monthly Fee * (>0)"
-                  value={formData.fee.monthly}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    fee: { ...formData.fee, monthly: e.target.value }
-                  })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  required
-                />
-
-                <input
-                  type="number"
-                  placeholder="Admission Fee (One Time)"
-                  value={formData.fee.admissionOneTime}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    fee: { ...formData.fee, admissionOneTime: e.target.value }
-                  })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-
-                <input
-                  type="number"
-                  placeholder="Registration Fee"
-                  value={formData.fee.registration}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    fee: { ...formData.fee, registration: e.target.value }
-                  })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-
-                <input
-                  type="number"
-                  placeholder="Security Fee"
-                  value={formData.fee.security}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    fee: { ...formData.fee, security: e.target.value }
-                  })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                />
-
-                {/* Payment Settings Section */}
-                <div className="col-span-2 mt-4">
-                  <h3 className="font-semibold text-gray-700 mb-2 border-b pb-1">Payment Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Student Email</label>
+                    <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className={inputCls} />
+                  </div>
                 </div>
 
-                <div className="text-sm text-amber-600 col-span-2 -mt-2">
-                  ⚠️ Due day must be between 1-28
+                {/* Parent Info */}
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-4">Parent / Guardian</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}>Full Name *</label>
+                      <input type="text" value={formData.parentName} onChange={(e) => setFormData({...formData, parentName: e.target.value})} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Phone *</label>
+                      <input type="tel" value={formData.parentPhone} onChange={(e) => setFormData({...formData, parentPhone: onlyDigits(e.target.value)})} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className={labelCls}>Email</label>
+                      <input type="email" value={formData.parentEmail} onChange={(e) => setFormData({...formData, parentEmail: e.target.value})} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className={labelCls}>Address</label>
+                    <textarea value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} rows={2} className={inputCls} />
+                  </div>
                 </div>
 
-                <input
-                  type="number"
-                  placeholder="Due Day (1-28) *"
-                  value={formData.dueDay}
-                  onChange={(e) => setFormData({ ...formData, dueDay: e.target.value })}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  min="1"
-                  max="28"
-                  required
-                />
+                {/* Academic */}
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-4">Academic</h3>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className={labelCls}>Class *</label>
+                      <select value={formData.className} onChange={(e) => handleClassChange(e.target.value)} className={inputCls}>
+                        <option value="">Select Class</option>
+                        {classes && classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <button type="button" onClick={() => setShowAddClassModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm whitespace-nowrap">
+                      + Add Class
+                    </button>
+                  </div>
+
+                  {isHighClassSelected && (
+                    <div className="mt-4">
+                      <label className={labelCls}>Group *</label>
+                      <select value={formData.group} onChange={(e) => handleGroupChange(e.target.value)} className={inputCls}>
+                        <option value="">Select Group</option>
+                        {(GROUPS_BY_CLASS[formData.className] || []).map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className={labelCls}>Section *</label>
+                      <select value={formData.section} onChange={(e) => setFormData({...formData, section: e.target.value})} className={inputCls}>
+                        <option value="">Select Section</option>
+                        {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
+                      </select>
+                    </div>
+                    <button type="button" onClick={() => {
+                      if (!formData.className) { toast.error("Select class first"); return; }
+                      setSelectedClassForSection(formData.className);
+                      setShowAddSectionModal(true);
+                    }} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm whitespace-nowrap">
+                      + Add Section
+                    </button>
+                  </div>
+
+                  {formData.className && (!isHighClassSelected || formData.group) && (
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className={labelCls}>Subjects</label>
+                        <button type="button" onClick={() => {
+                          if (!formData.className) { toast.error("Select class first"); return; }
+                          setSelectedClassForSubject(formData.className);
+                          setSelectedGroupForSubject(formData.group);
+                          setShowAddSubjectModal(true);
+                        }} className="px-3 py-1 bg-purple-600 text-white rounded-md text-sm">
+                          + Add Subject
+                        </button>
+                      </div>
+                      {availableSubjects.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {availableSubjects.map(subj => (
+                            <button key={subj} type="button" onClick={() => toggleSubject(subj)}
+                              className={`px-3 py-1.5 rounded-full text-sm border ${(formData.selectedSubjects || []).includes(subj) ? "bg-emerald-600 text-white" : "bg-white text-gray-700 border-gray-300"}`}>
+                              {subj}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 mb-2">No subjects available. Add subjects using the button above.</p>
+                      )}
+                      <div className="flex gap-2 mt-2">
+                        <input type="text" value={customSubject} onChange={(e) => setCustomSubject(e.target.value)} placeholder="Add custom subject..." className="flex-1 px-3 py-2 border rounded-md text-sm" />
+                        <button type="button" onClick={addCustomSubject} className="px-4 py-2 bg-gray-600 text-white rounded-md text-sm">Add</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fee */}
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-4">Fee Structure</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}>Monthly Fee *</label>
+                      <input type="number" value={formData.fee.monthly} onChange={(e) => setFormData({...formData, fee: {...formData.fee, monthly: e.target.value}})} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Admission Fee</label>
+                      <input type="number" value={formData.fee.admissionOneTime} onChange={(e) => setFormData({...formData, fee: {...formData.fee, admissionOneTime: e.target.value}})} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className={labelCls}>Due Day (1-28)</label>
+                    <select value={formData.dueDay} onChange={(e) => setFormData({...formData, dueDay: e.target.value})} className={inputCls}>
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(d => <option key={d} value={d}>Day {d}</option>)}
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    {editStudent ? "Updating..." : "Saving..."}
+                  </>
+                ) : (
+                  editStudent ? "Update" : "Save"
+                )}
               </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {saving ? "Saving..." : (editStudent ? "Update Student" : "Save Student")}
-              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Class Modal */}
+      {showAddClassModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-xl font-bold mb-4">Add New Class</h3>
+            <div className="space-y-4">
+              <input type="text" placeholder="Class Name" value={newClassName} onChange={(e) => setNewClassName(e.target.value)} className={inputCls} />
+              <input type="text" placeholder="Class ID" value={newClassId} onChange={(e) => setNewClassId(e.target.value)} className={inputCls} />
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={handleAddNewClass} className="flex-1 bg-blue-600 text-white py-2 rounded-md">Add</button>
+              <button onClick={() => setShowAddClassModal(false)} className="flex-1 bg-gray-300 py-2 rounded-md">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Section Modal */}
+      {showAddSectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-xl font-bold mb-4">Add New Section</h3>
+            <input type="text" placeholder="Section Name (e.g., D, E)" value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} className={inputCls} />
+            <div className="flex gap-2 mt-6">
+              <button onClick={handleAddNewSection} className="flex-1 bg-green-600 text-white py-2 rounded-md">Add</button>
+              <button onClick={() => setShowAddSectionModal(false)} className="flex-1 bg-gray-300 py-2 rounded-md">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Subject Modal */}
+      {showAddSubjectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-xl font-bold mb-4">Add New Subject</h3>
+            <input type="text" placeholder="Subject Name" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} className={inputCls} />
+            <div className="flex gap-2 mt-6">
+              <button onClick={handleAddNewSubject} className="flex-1 bg-purple-600 text-white py-2 rounded-md">Add</button>
+              <button onClick={() => setShowAddSubjectModal(false)} className="flex-1 bg-gray-300 py-2 rounded-md">Cancel</button>
             </div>
           </div>
         </div>

@@ -10,17 +10,8 @@ import axios from "axios";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const onlyDigits = (str) => String(str || "").replace(/\D/g, "");
 
-const isValidEmail = (e) => {
-  if (!e) return false;
-  const at = e.indexOf("@");
-  if (at <= 0 || at !== e.lastIndexOf("@")) return false;
-  const domain = e.slice(at + 1);
-  const dot = domain.lastIndexOf(".");
-  return !!(e.slice(0, at) && dot > 0 && dot < domain.length - 1);
-};
-
 // ── Static Data ─────────────────────────────────────────────────────────────────
-const CLASSES = [
+const INITIAL_CLASSES = [
   { id: "nursery", name: "Nursery" },
   { id: "prep", name: "Prep" },
   { id: "kg", name: "KG" },
@@ -37,7 +28,6 @@ const CLASSES = [
   { id: "11", name: "11th" },
   { id: "12", name: "12th" },
 ];
-const CLASS_MAP = Object.fromEntries(CLASSES.map((c) => [c.id, c.name]));
 
 const HIGH_CLASSES = ["9", "10", "11", "12"];
 
@@ -102,7 +92,7 @@ const uploadImageToServer = async (file) => {
 };
 
 // ── Subjects helper ───────────────────────────────────────────────────────────
-const getSubjectsForClass = (classId, group) => {
+const getSubjectsForClass = (classId, group, customSubjects) => {
   if (!classId) return [];
   if (!HIGH_CLASSES.includes(classId)) {
     return SUBJECTS_BY_CLASS[classId] || [];
@@ -118,6 +108,23 @@ export default function AdmissionScreen() {
   const user = useSelector((state) => state.users.loginuser);
 
   const [loading, setLoading] = useState(false);
+  const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
+  
+  // New Class State
+  const [newClassName, setNewClassName] = useState("");
+  const [newClassId, setNewClassId] = useState("");
+  const [isHighClass, setIsHighClass] = useState(false);
+  
+  // New Section State
+  const [newSectionName, setNewSectionName] = useState("");
+  const [selectedClassForSection, setSelectedClassForSection] = useState("");
+  
+  // New Subject State
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [selectedClassForSubject, setSelectedClassForSubject] = useState("");
+  const [selectedGroupForSubject, setSelectedGroupForSubject] = useState("");
 
   // Account info (from logged-in head)
   const [adminId, setAdminId] = useState("");
@@ -150,15 +157,17 @@ export default function AdmissionScreen() {
     address: "",
   });
 
-  // Academic
+  // Academic - Dynamic data
+  const [classes, setClasses] = useState(INITIAL_CLASSES);
+  const [customSubjects, setCustomSubjects] = useState({});
+  const [extraSections, setExtraSections] = useState({});
+  
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [customSubject, setCustomSubject] = useState("");
   const [extraSubjects, setExtraSubjects] = useState([]);
-  const [extraSections, setExtraSections] = useState({});
-  const [customSection, setCustomSection] = useState("");
 
   // Fee
   const [monthlyFee, setMonthlyFee] = useState("");
@@ -182,6 +191,22 @@ export default function AdmissionScreen() {
         setSchoolName(userData.schoolName || "");
         setAdminId(userData.adminId || "");
         setHeadId(userData.id || userData.headId || "");
+        
+        // Load saved custom data from localStorage
+        const savedClasses = localStorage.getItem(`classes_${userData.schoolId}`);
+        if (savedClasses) {
+          setClasses(JSON.parse(savedClasses));
+        }
+        
+        const savedSections = localStorage.getItem(`sections_${userData.schoolId}`);
+        if (savedSections) {
+          setExtraSections(JSON.parse(savedSections));
+        }
+        
+        const savedSubjects = localStorage.getItem(`subjects_${userData.schoolId}`);
+        if (savedSubjects) {
+          setCustomSubjects(JSON.parse(savedSubjects));
+        }
       } catch {}
     }
   }, [dispatch]);
@@ -204,17 +229,40 @@ export default function AdmissionScreen() {
   }, [schoolId]);
 
   // ── Derived values ──────────────────────────────────────────────────────────
-  const isHighClass = HIGH_CLASSES.includes(selectedClass);
+  const isHighClassSelected = HIGH_CLASSES.includes(selectedClass);
 
-  const availableSubjects = [
-    ...getSubjectsForClass(selectedClass, selectedGroup),
-    ...extraSubjects,
-  ];
+  const getAvailableSubjects = () => {
+    let subjects = [];
+    if (!isHighClassSelected) {
+      subjects = [...(SUBJECTS_BY_CLASS[selectedClass] || [])];
+    } else if (selectedGroup) {
+      if (selectedClass === "9" || selectedClass === "10") {
+        subjects = [...(SUBJECTS_9_10[selectedGroup] || [])];
+      } else {
+        subjects = [...(SUBJECTS_11_12[selectedGroup] || [])];
+      }
+    }
+    
+    // Add custom subjects for this class
+    const classKey = `${selectedClass}_${selectedGroup || 'nogroup'}`;
+    if (customSubjects[classKey]) {
+      subjects = [...subjects, ...customSubjects[classKey]];
+    }
+    
+    return [...subjects, ...extraSubjects];
+  };
 
-  const availableSections = [
-    ...DEFAULT_SECTIONS,
-    ...(extraSections[selectedClass] || []),
-  ];
+  const availableSubjects = getAvailableSubjects();
+
+  const getAvailableSections = () => {
+    const sections = [...DEFAULT_SECTIONS];
+    if (extraSections[selectedClass]) {
+      sections.push(...extraSections[selectedClass]);
+    }
+    return sections;
+  };
+
+  const availableSections = getAvailableSections();
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleClassChange = (value) => {
@@ -249,21 +297,104 @@ export default function AdmissionScreen() {
     setCustomSubject("");
   };
 
-  const addCustomSection = () => {
-    if (!selectedClass) { toast.warn("Select a class first."); return; }
-    const val = customSection.trim();
-    if (!val) return;
-    const formatted = val.length === 1 ? val.toUpperCase() : val[0].toUpperCase() + val.slice(1);
-    const existing = availableSections;
-    if (existing.some((s) => s.toLowerCase() === formatted.toLowerCase())) {
-      toast.warn(`Section "${formatted}" already exists.`);
+  // Add New Class
+  const handleAddNewClass = () => {
+    if (!newClassName.trim()) {
+      toast.error("Please enter class name");
       return;
     }
-    setExtraSections((prev) => ({
-      ...prev,
-      [selectedClass]: [...(prev[selectedClass] || []), formatted],
-    }));
-    setCustomSection("");
+    if (!newClassId.trim()) {
+      toast.error("Please enter class ID");
+      return;
+    }
+    
+    const newClass = {
+      id: newClassId.toLowerCase(),
+      name: newClassName.trim()
+    };
+    
+    const updatedClasses = [...classes, newClass];
+    setClasses(updatedClasses);
+    
+    // Save to localStorage
+    localStorage.setItem(`classes_${schoolId}`, JSON.stringify(updatedClasses));
+    
+    // Here you can also make an API call to save to database
+    // await addClassToSchool(schoolId, newClass);
+    
+    toast.success(`Class "${newClassName}" added successfully!`);
+    setShowAddClassModal(false);
+    setNewClassName("");
+    setNewClassId("");
+    setIsHighClass(false);
+  };
+
+  // Add New Section
+  const handleAddNewSection = () => {
+    if (!selectedClassForSection) {
+      toast.error("Please select a class first");
+      return;
+    }
+    if (!newSectionName.trim()) {
+      toast.error("Please enter section name");
+      return;
+    }
+    
+    const formattedSection = newSectionName.trim().toUpperCase();
+    const currentSections = extraSections[selectedClassForSection] || [];
+    
+    if (currentSections.includes(formattedSection)) {
+      toast.warn(`Section "${formattedSection}" already exists for this class`);
+      return;
+    }
+    
+    const updatedSections = {
+      ...extraSections,
+      [selectedClassForSection]: [...currentSections, formattedSection]
+    };
+    
+    setExtraSections(updatedSections);
+    localStorage.setItem(`sections_${schoolId}`, JSON.stringify(updatedSections));
+    
+    toast.success(`Section "${formattedSection}" added for class ${selectedClassForSection}`);
+    setShowAddSectionModal(false);
+    setNewSectionName("");
+    setSelectedClassForSection("");
+  };
+
+  // Add New Subject
+  const handleAddNewSubject = () => {
+    if (!selectedClassForSubject) {
+      toast.error("Please select a class");
+      return;
+    }
+    if (!newSubjectName.trim()) {
+      toast.error("Please enter subject name");
+      return;
+    }
+    
+    const classKey = `${selectedClassForSubject}_${selectedGroupForSubject || 'nogroup'}`;
+    const currentSubjects = customSubjects[classKey] || [];
+    const formattedSubject = newSubjectName.trim();
+    
+    if (currentSubjects.includes(formattedSubject)) {
+      toast.warn(`Subject "${formattedSubject}" already exists for this class/group`);
+      return;
+    }
+    
+    const updatedSubjects = {
+      ...customSubjects,
+      [classKey]: [...currentSubjects, formattedSubject]
+    };
+    
+    setCustomSubjects(updatedSubjects);
+    localStorage.setItem(`subjects_${schoolId}`, JSON.stringify(updatedSubjects));
+    
+    toast.success(`Subject "${formattedSubject}" added for ${selectedClassForSubject}${selectedGroupForSubject ? ` - ${selectedGroupForSubject}` : ''}`);
+    setShowAddSubjectModal(false);
+    setNewSubjectName("");
+    setSelectedClassForSubject("");
+    setSelectedGroupForSubject("");
   };
 
   const handleImageChange = (e) => {
@@ -312,8 +443,8 @@ export default function AdmissionScreen() {
           address: parent.address.trim() || "",
         },
         selectedClass: selectedClass,
-        className: CLASS_MAP[selectedClass] || selectedClass,
-        group: isHighClass ? selectedGroup : null,
+        className: classes.find(c => c.id === selectedClass)?.name || selectedClass,
+        group: isHighClassSelected ? selectedGroup : null,
         selectedSection: selectedSection,
         selectedSubjects: selectedSubjects,
         admissionFee: parseInt(admissionFee) || 0,
@@ -352,6 +483,7 @@ export default function AdmissionScreen() {
       setAdmissionFee("");
       setDueDay("5");
       setSelectedTeacher(null);
+      setExtraSubjects([]);
       
     } catch (err) {
       console.error("Submission error:", err);
@@ -485,15 +617,26 @@ export default function AdmissionScreen() {
           {/* Academic */}
           <div className="border-t pt-4">
             <h2 className="text-lg font-semibold mb-4">Academic</h2>
-            <div>
-              <label className={labelCls}>Class *</label>
-              <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} required className={inputCls}>
-                <option value="">Select Class</option>
-                {CLASSES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className={labelCls}>Class *</label>
+                <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} required className={inputCls}>
+                  <option value="">Select Class</option>
+                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddClassModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm whitespace-nowrap"
+                >
+                  + Add New Class
+                </button>
+              </div>
             </div>
 
-            {isHighClass && (
+            {isHighClassSelected && (
               <div className="mt-4">
                 <label className={labelCls}>Group *</label>
                 <select value={selectedGroup} onChange={(e) => handleGroupChange(e.target.value)} required className={inputCls}>
@@ -503,24 +646,79 @@ export default function AdmissionScreen() {
               </div>
             )}
 
-            <div className="mt-4">
-              <label className={labelCls}>Section *</label>
-              <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} required className={inputCls}>
-                <option value="">Select Section</option>
-                {availableSections.map((s) => <option key={s} value={s}>Section {s}</option>)}
-              </select>
+            <div className="mt-4 flex gap-2 items-end">
+              <div className="flex-1">
+                <label className={labelCls}>Section *</label>
+                <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} required className={inputCls}>
+                  <option value="">Select Section</option>
+                  {availableSections.map((s) => <option key={s} value={s}>Section {s}</option>)}
+                </select>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedClass) {
+                      toast.error("Please select a class first");
+                      return;
+                    }
+                    setSelectedClassForSection(selectedClass);
+                    setShowAddSectionModal(true);
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm whitespace-nowrap"
+                >
+                  + Add Section
+                </button>
+              </div>
             </div>
 
-            {selectedClass && (!isHighClass || selectedGroup) && (
+            {selectedClass && (!isHighClassSelected || selectedGroup) && (
               <div className="mt-4">
-                <label className={labelCls}>Subjects</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className={labelCls}>Subjects</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedClass) {
+                        toast.error("Please select a class first");
+                        return;
+                      }
+                      setSelectedClassForSubject(selectedClass);
+                      setSelectedGroupForSubject(selectedGroup);
+                      setShowAddSubjectModal(true);
+                    }}
+                    className="px-3 py-1 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
+                  >
+                    + Add Subject
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {availableSubjects.map((subj) => (
                     <button key={subj} type="button" onClick={() => toggleSubject(subj)}
-                      className={`px-3 py-1.5 rounded-full text-sm border ${selectedSubjects.includes(subj) ? "bg-blue-600 text-white" : "bg-white text-gray-700 border-gray-300"}`}>
+                      className={`px-3 py-1.5 rounded-full text-sm border ${
+                        selectedSubjects.includes(subj) 
+                          ? "bg-blue-600 text-white" 
+                          : "bg-white text-gray-700 border-gray-300"
+                      }`}>
                       {subj}
                     </button>
                   ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={customSubject}
+                    onChange={(e) => setCustomSubject(e.target.value)}
+                    placeholder="Add custom subject..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCustomSubject}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
+                  >
+                    Add
+                  </button>
                 </div>
               </div>
             )}
@@ -557,6 +755,159 @@ export default function AdmissionScreen() {
 
         </form>
       </div>
+
+      {/* Add Class Modal */}
+      {showAddClassModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Add New Class</h3>
+            <div className="space-y-4">
+              <div>
+                <label className={labelCls}>Class Name *</label>
+                <input
+                  type="text"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  placeholder="e.g., Class 13, Pre-School"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Class ID *</label>
+                <input
+                  type="text"
+                  value={newClassId}
+                  onChange={(e) => setNewClassId(e.target.value)}
+                  placeholder="e.g., 13, preschool"
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="checkbox"
+                  id="isHighClass"
+                  checked={isHighClass}
+                  onChange={(e) => setIsHighClass(e.target.checked)}
+                />
+                <label htmlFor="isHighClass">Is this a high class (9-12)?</label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleAddNewClass}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+              >
+                Add Class
+              </button>
+              <button
+                onClick={() => setShowAddClassModal(false)}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Section Modal */}
+      {showAddSectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Add New Section</h3>
+            <div className="space-y-4">
+              <div>
+                <label className={labelCls}>Class</label>
+                <input
+                  type="text"
+                  value={classes.find(c => c.id === selectedClassForSection)?.name || selectedClassForSection}
+                  disabled
+                  className={`${inputCls} bg-gray-100`}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Section Name *</label>
+                <input
+                  type="text"
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                  placeholder="e.g., D, E, F"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleAddNewSection}
+                className="flex-1 bg-green-600 text-white py-2 rounded-md hover:bg-green-700"
+              >
+                Add Section
+              </button>
+              <button
+                onClick={() => setShowAddSectionModal(false)}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Subject Modal */}
+      {showAddSubjectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Add New Subject</h3>
+            <div className="space-y-4">
+              <div>
+                <label className={labelCls}>Class</label>
+                <input
+                  type="text"
+                  value={classes.find(c => c.id === selectedClassForSubject)?.name || selectedClassForSubject}
+                  disabled
+                  className={`${inputCls} bg-gray-100`}
+                />
+              </div>
+              {isHighClassSelected && selectedGroupForSubject && (
+                <div>
+                  <label className={labelCls}>Group</label>
+                  <input
+                    type="text"
+                    value={selectedGroupForSubject}
+                    disabled
+                    className={`${inputCls} bg-gray-100`}
+                  />
+                </div>
+              )}
+              <div>
+                <label className={labelCls}>Subject Name *</label>
+                <input
+                  type="text"
+                  value={newSubjectName}
+                  onChange={(e) => setNewSubjectName(e.target.value)}
+                  placeholder="e.g., Biology, Chemistry"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleAddNewSubject}
+                className="flex-1 bg-purple-600 text-white py-2 rounded-md hover:bg-purple-700"
+              >
+                Add Subject
+              </button>
+              <button
+                onClick={() => setShowAddSubjectModal(false)}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
