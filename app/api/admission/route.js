@@ -15,110 +15,180 @@ function generateStudentId() {
 // ═════════════════════════════════════════════════════════════════════════════
 // POST — Create admission
 // ═════════════════════════════════════════════════════════════════════════════
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+// POST — Create admission
+// ═════════════════════════════════════════════════════════════════════════════
 export async function POST(request) {
   try {
     const body = await request.json();
 
     const {
-      // Account & school
       adminId,
       headId,
       schoolId,
-      schoolName,
-
-      // Teacher
       teacherId,
-
-      // Student basic
-      firstName,
-      lastName,
-      rollNo,
-      gender,
+      classId,
+      className,
       dob,
-      studentEmail,
-      studentPassword,
-
-      // Parent — arrives as nested object { name, phone, email, password, address }
-      parent,
-
-      // Academic
-      selectedClass,   // stored as classId in Firestore
-      className,       // display name e.g. "Nursery", "Class 1", "9th"
+      email: studentEmail,
+      fee: {
+        admissionOneTime,
+        dueDay,
+        monthly: monthlyFee,
+        outstanding,
+        previousPending,
+        registration,
+        annual,
+        other
+      },
+      reminder: {
+        channel,
+        daysBefore: reminderDaysBefore,
+        enabled: autoReminder,
+        security,
+        tuition
+      },
+      firstName,
+      gender,
       group,
-      selectedSection, // stored as section in Firestore
-      selectedSubjects,// stored as subjects[] in Firestore
-
-      // Image — filename string (uploaded to PHP server by frontend)
       imageUrl,
-
-      // Fee flat fields
-      admissionFee,
-      monthlyFee,
-
-      // Billing settings
-      dueDay,
-      autoReminder,
-      reminderDaysBefore,
-      notifyVia,
+      lastName,
+      parent: {
+        address: parentAddress,
+        email: parentEmail,
+        password: parentPassword,
+        phone: parentPhone,
+        father: {
+          cnic: fatherCnic,
+          mobile: fatherMobile,
+          name: fatherName
+        },
+        mother: {
+          cnic: motherCnic,
+          mobile: motherMobile,
+          name: motherName
+        },
+      },
+      admissionPayment: {
+        admissionPaid,
+        annualPaid,
+        balance,
+        depositDate,
+        depositStatus,
+        month,
+        prevPendingPaid,
+        registrationPaid,
+        remarks,
+        securityPaid,
+        totalDue,
+        totalPaid
+      },
+      password: studentPassword,
+      role,
+      religion,
+      rollNo,
+      schoolName,
+      section: selectedSection,
+      status,
+      teacherName,
+      subjects: selectedSubjects
     } = body;
 
-    // ── Extract parent fields ─────────────────────────────────────────────────
-    const parentName    = parent?.name    || "";
-    const parentPhone   = parent?.phone   || "";
-    const parentEmail   = parent?.email   || "";
-    const parentPassword = parent?.password || "";
-    const parentAddress = parent?.address || "";
+    // ── Derived fields ──────────────────────────────────────────────────────────
+    const parentName = `${fatherName || ''} ${motherName || ''}`.trim() || "Parent";
+    const selectedClass = classId;
+    const admissionFee = admissionOneTime;
 
     // ── Validation ────────────────────────────────────────────────────────────
     const errors = [];
 
-    if (!adminId || !headId || !schoolId) errors.push("Account info missing (adminId / headId / schoolId).");
-    if (!teacherId) errors.push("Teacher Incharge is required.");
-    if (!firstName?.trim()) errors.push("First name is required.");
+    // Account validation
+    if (!adminId) errors.push("Administrator ID is required");
+    if (!headId) errors.push("Head ID is required");
+    if (!schoolId) errors.push("School ID is required");
+  
+    if (!teacherId) errors.push("Teacher Incharge is required");
+    
 
+    if (!firstName?.trim()) errors.push("First name is required");
+
+   
     const rd = onlyDigits(rollNo);
-    if (!rd || rd.length < 1 || rd.length > 10)
-      errors.push("Roll number must be 1–10 digits.");
+    if (!rd) {
+      errors.push("Roll number is required");
+    } else if (rd.length < 1 || rd.length > 10) {
+      errors.push("Roll number must be 1–10 digits");
+    }
 
-    if (!studentEmail || !studentEmail.includes("@"))
-      errors.push("Valid student email is required.");
-    if (!studentPassword || String(studentPassword).length < 6)
-      errors.push("Student password must be at least 6 characters.");
+    // Student email validation
+    if (!studentEmail) {
+      errors.push("Student email is required");
+    } else if (!studentEmail.includes("@")) {
+      errors.push("Valid student email is required");
+    }
+    
 
-    if (!parentName?.trim()) errors.push("Parent name is required.");
-    const pd = onlyDigits(parentPhone);
-    if (pd.length < 10 || pd.length > 14)
-      errors.push("Parent phone must be 10–14 digits.");
-    if (!parentEmail || !parentEmail.includes("@"))
-      errors.push("Valid parent email is required.");
+    if (!studentPassword) {
+      errors.push("Student password is required");
+    } else if (String(studentPassword).length < 6) {
+      errors.push("Student password must be at least 6 characters");
+    }
 
-    if (!selectedClass) errors.push("Class is required.");
-    if (!selectedSection) errors.push("Section is required.");
+    // Parent validation
+    if (!parentName?.trim()) errors.push("Parent name is required");
+    
+    if (!parentPhone) {
+      errors.push("Parent phone is required");
+    } else {
+      const pd = onlyDigits(parentPhone);
+      if (pd.length < 10 || pd.length > 14) {
+        errors.push("Parent phone must be 10–14 digits");
+      }
+    }
+    
+    if (!parentEmail) {
+      errors.push("Parent email is required");
+    } else if (!parentEmail.includes("@")) {
+      errors.push("Valid parent email is required");
+    }
 
-    if (!Array.isArray(selectedSubjects) || selectedSubjects.length === 0)
-      errors.push("Select at least one subject.");
+    // Class & section validation
+    if (!selectedClass) errors.push("Class is required");
+    if (!selectedSection) errors.push("Section is required");
 
-    if (toNumber(monthlyFee) <= 0)
-      errors.push("Monthly fee must be greater than 0.");
+    // Subjects validation
+    if (!Array.isArray(selectedSubjects) || selectedSubjects.length === 0) {
+      errors.push("Select at least one subject");
+    }
 
+    // Fee validation
+    if (toNumber(monthlyFee) <= 0) {
+      errors.push("Monthly fee must be greater than 0");
+    }
+
+    // Due day validation
     const dd = toNumber(dueDay);
-    if (!(dd >= 1 && dd <= 28))
-      errors.push("Due day must be between 1 and 28.");
+    if (!(dd >= 1 && dd <= 28)) {
+      errors.push("Due day must be between 1 and 28");
+    }
 
+    // Return validation errors if any
     if (errors.length > 0) {
       return NextResponse.json(
-        { success: false, message: errors.join(" | ") },
+        { success: false, message: errors.join(". ") },
         { status: 400 }
       );
     }
 
     const normalizedStudentEmail = studentEmail.trim().toLowerCase();
-    const normalizedParentEmail  = parentEmail.trim().toLowerCase();
+    const normalizedParentEmail = parentEmail.trim().toLowerCase();
 
     // ── Student/parent email must not be the same ─────────────────────────────
     if (normalizedStudentEmail === normalizedParentEmail) {
       return NextResponse.json(
-        { success: false, message: "Student and parent email cannot be the same." },
+        { success: false, message: "Student and parent email cannot be the same" },
         { status: 409 }
       );
     }
@@ -129,8 +199,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           success: false,
-          message: emailCheckResult.message ||
-            `Email ${normalizedStudentEmail} is already in use.`,
+          message: emailCheckResult.message || `Email ${normalizedStudentEmail} is already in use`,
           collection: emailCheckResult.collection,
           role: emailCheckResult.role,
         },
@@ -147,7 +216,7 @@ export async function POST(request) {
 
     if (!dupStudentEmailSnap.empty) {
       return NextResponse.json(
-        { success: false, message: "This student email already exists in this school." },
+        { success: false, message: "This student email already exists in this school" },
         { status: 409 }
       );
     }
@@ -165,7 +234,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           success: false,
-          message: `Roll no ${rd} already exists in ${className || selectedClass} — Section ${selectedSection}.`,
+          message: `Roll number ${rd} already exists in ${className || selectedClass} - Section ${selectedSection}`,
         },
         { status: 409 }
       );
@@ -189,11 +258,20 @@ export async function POST(request) {
         resolvedParentPassword = existingParentData?.parent?.password || null;
       }
     } else {
-      if (!resolvedParentPassword || resolvedParentPassword.length < 8) {
+      if (!resolvedParentPassword) {
         return NextResponse.json(
           {
             success: false,
-            message: "New parent account requires a password of at least 8 characters.",
+            message: "New parent account requires a password of at least 8 characters",
+          },
+          { status: 400 }
+        );
+      }
+      if (resolvedParentPassword.length < 8) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Parent password must be at least 8 characters",
           },
           { status: 400 }
         );
@@ -201,82 +279,105 @@ export async function POST(request) {
     }
 
     // ── Build Firestore document ──────────────────────────────────────────────
-    const studentId        = generateStudentId();
+    const newStudentId = generateStudentId();
     const currentTimestamp = new Date().toISOString();
 
-    // fee sub-object — matches first object schema exactly
+    // Fee sub-object
     const feeObj = {
       admissionOneTime: toNumber(admissionFee),
       dueDay: toNumber(dueDay),
       monthly: toNumber(monthlyFee),
-      outstanding: 0,
+      outstanding: toNumber(outstanding) || 0,
+      previousPending: toNumber(previousPending) || 0,
+      registration: toNumber(registration) || 0,
+      annual: toNumber(annual) || 0,
+      other: toNumber(other) || 0,
       reminder: {
         enabled: !!autoReminder,
         daysBefore: parseInt(String(reminderDaysBefore), 10) || 0,
-        channel: notifyVia || "WhatsApp",
+        channel: channel || "WhatsApp",
+        security: security || false,
+        tuition: tuition || false
       },
     };
 
-    // parent sub-object
+    // Parent sub-object with complete information
     const parentObj = {
       name: parentName.trim(),
       phone: onlyDigits(parentPhone),
       email: normalizedParentEmail,
       address: parentAddress?.trim() || "",
+      father: {
+        name: fatherName || "",
+        cnic: fatherCnic || "",
+        mobile: fatherMobile || ""
+      },
+      mother: {
+        name: motherName || "",
+        cnic: motherCnic || "",
+        mobile: motherMobile || ""
+      }
     };
+    
     if (resolvedParentPassword) parentObj.password = resolvedParentPassword;
 
-    // Full student document — matches first object schema exactly
+    // Admission payment object
+    const admissionPaymentObj = {
+      admissionPaid: toNumber(admissionPaid) || 0,
+      annualPaid: toNumber(annualPaid) || 0,
+      balance: toNumber(balance) || 0,
+      depositDate: depositDate || null,
+      depositStatus: depositStatus || "pending",
+      month: month || null,
+      prevPendingPaid: toNumber(prevPendingPaid) || 0,
+      registrationPaid: toNumber(registrationPaid) || 0,
+      remarks: remarks || "",
+      securityPaid: toNumber(securityPaid) || 0,
+      totalDue: toNumber(totalDue) || 0,
+      totalPaid: toNumber(totalPaid) || 0
+    };
+
     const studentDoc = {
-      // ── Identifiers ──
-      studentId,
+      studentId: newStudentId,
       adminId,
       headId,
       schoolId,
-      schoolName,
-
-      // ── Teacher ──
+      schoolName: schoolName || "",
       teacherId,
-
-      // ── Student ──
-      role: "student",
-      status: "active",
+      teacherName: teacherName || "",
+      role: role || "student",
+      status: status || "active",
       firstName: firstName.trim(),
       lastName: (lastName || "").trim(),
       rollNo: rd,
-      gender,
-      dob: (dob || "").trim(),
+      gender: gender || "",
+      dob: dob || "",
+      religion: religion || "",
       email: normalizedStudentEmail,
       password: studentPassword,
       imageUrl: imageUrl || null,
       group: group || null,
-
-      // ── Parent (nested) ──
       parent: parentObj,
-
-      // ── Academic ──
       classId: selectedClass,
       className: className || selectedClass,
       section: selectedSection,
-      subjects: selectedSubjects,
-
-      // ── Fee ──
+      subjects: selectedSubjects || [],
       fee: feeObj,
-
-      // ── Timestamps ──
+      admissionPayment: admissionPaymentObj,
       createdAt: currentTimestamp,
+      updatedAt: currentTimestamp
     };
 
     // ── Save to Firestore ─────────────────────────────────────────────────────
-    await db.collection("students").doc(studentId).set(studentDoc);
+    await db.collection("students").doc(newStudentId).set(studentDoc);
 
     return NextResponse.json(
       {
         success: true,
-        studentId,
-        message: `${firstName.trim()} has been successfully admitted.`,
+        studentId: newStudentId,
+        message: `${firstName.trim()} has been successfully admitted`,
         data: {
-          studentId,
+          studentId: newStudentId,
           firstName: firstName.trim(),
           lastName: (lastName || "").trim(),
           email: normalizedStudentEmail,
@@ -292,7 +393,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Admission POST error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to save. Please try again." },
+      { success: false, message: "Failed to save student record. Please try again." },
       { status: 500 }
     );
   }
@@ -308,118 +409,41 @@ export async function GET(request) {
   console.log("=== API GET /admission called ===");
   
   try {
-    const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get("schoolId");
+    // Get ALL students from database
+    const snapshot = await db.collection("students").get();
     
-    console.log("SchoolId from query:", schoolId);
+    console.log("Total students found:", snapshot.size);
 
-    if (!schoolId) {
-      return NextResponse.json(
-        { success: false, message: "schoolId is required." },
-        { status: 400 }
-      );
-    }
-
-    // Get ALL students first to see what's in the database
-    const allStudentsSnap = await db.collection("students").get();
-    console.log("Total students in database:", allStudentsSnap.size);
-    
-    // Log ALL students to see their schoolId values
-    const allStudentsList = [];
-    allStudentsSnap.forEach(doc => {
-      const data = doc.data();
-      allStudentsList.push({
-        id: doc.id,
-        schoolId: data.schoolId,
-        name: `${data.firstName} ${data.lastName || ''}`,
-        rollNo: data.rollNo
-      });
-    });
-    console.log("All students in DB:", JSON.stringify(allStudentsList, null, 2));
-    
-    // Method 1: Try with where clause
-    let snapshot = await db
-      .collection("students")
-      .where("schoolId", "==", schoolId)
-      .get();
-    
-    console.log(`Students found with where clause:`, snapshot.size);
-    
-    // If no students found with where, try getting all and filter manually
     if (snapshot.empty) {
-      console.log("No students found with where clause, trying manual filtering...");
-      
-      const manuallyFiltered = [];
-      allStudentsSnap.forEach(doc => {
-        const data = doc.data();
-        // Try different matching methods
-        if (data.schoolId === schoolId || 
-            String(data.schoolId) === String(schoolId) ||
-            (data.schoolId && data.schoolId.toString() === schoolId.toString())) {
-          manuallyFiltered.push({
-            id: doc.id,
-            ...data
-          });
-        }
-      });
-      
-      if (manuallyFiltered.length > 0) {
-        console.log(`Found ${manuallyFiltered.length} students via manual filter`);
-        
-        // Remove sensitive data
-        const students = manuallyFiltered.map(student => {
-          delete student.password;
-          if (student.parent?.password) delete student.parent.password;
-          return student;
-        });
-        
-        return NextResponse.json({ 
-          success: true, 
-          students, 
-          total: students.length,
-          debug: {
-            method: "manual_filter",
-            totalInDB: allStudentsSnap.size,
-            requestedSchoolId: schoolId
-          }
-        });
-      }
-      
-      // If still no students found, return debug info
-      const uniqueSchoolIds = [...new Set(allStudentsList.map(s => s.schoolId).filter(id => id))];
-      console.log("Unique schoolIds in database:", uniqueSchoolIds);
-      
       return NextResponse.json({ 
         success: true, 
         students: [], 
         total: 0,
-        debug: {
-          totalInDB: allStudentsSnap.size,
-          availableSchoolIds: uniqueSchoolIds,
-          requestedSchoolId: schoolId,
-          allStudents: allStudentsList
-        }
+        message: "No students found in database"
       });
     }
 
-    // Students found with where clause
+    // Remove sensitive data from all students
     const students = snapshot.docs.map((doc) => {
-      const data = { id: doc.id, ...doc.data() };
+      const data = { 
+        id: doc.id, 
+        ...doc.data() 
+      };
+      
+      // Remove sensitive information
       delete data.password;
       if (data.parent?.password) delete data.parent.password;
+      
       return data;
     });
 
     return NextResponse.json({ 
       success: true, 
+        total: students.length,
       students, 
-      total: students.length,
-      debug: {
-        method: "where_clause",
-        totalInDB: allStudentsSnap.size,
-        requestedSchoolId: schoolId
-      }
+    
     });
+    
   } catch (error) {
     console.error("Admission GET error:", error);
     return NextResponse.json(
@@ -434,56 +458,145 @@ export async function GET(request) {
 // ═════════════════════════════════════════════════════════════════════════════
 export async function PUT(request) {
   try {
+
+      const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("studentId");
     const body = await request.json();
 
     const {
-      studentId, schoolId,
-      firstName, lastName, rollNo, gender, dob,
-      studentEmail, studentPassword,
+      schoolId,
+      adminId,
+      headId,
+      firstName, 
+      lastName, 
+      rollNo, 
+      gender, 
+      dob,
+      religion,
+      email: studentEmail, 
+      password: studentPassword,
       parent,
-      selectedClass, className, selectedSection, group, selectedSubjects,
-      admissionFee, monthlyFee,
-      dueDay, autoReminder, reminderDaysBefore, notifyVia,
+      classId: selectedClass, 
+      className, 
+      section: selectedSection, 
+      group, 
+      subjects: selectedSubjects,
+      fee: {
+        admissionOneTime: admissionFee,
+        dueDay,
+        monthly: monthlyFee,
+        outstanding,
+        previousPending,
+        registration,
+        annual,
+        other
+      },
+      reminder: {
+        channel: notifyVia,
+        daysBefore: reminderDaysBefore,
+        enabled: autoReminder,
+        security,
+        tuition
+      },
       imageUrl,
       teacherId,
+      teacherName,
+      schoolName,
+      role,
+      status,
+      admissionPayment: {
+        admissionPaid,
+        annualPaid,
+        balance,
+        depositDate,
+        depositStatus,
+        month,
+        prevPendingPaid,
+        registrationPaid,
+        remarks,
+        securityPaid,
+        totalDue,
+        totalPaid
+      }
     } = body;
 
+    // ── Extract parent fields ─────────────────────────────────────────────────
     const parentName     = parent?.name    || "";
     const parentPhone    = parent?.phone   || "";
     const parentEmail    = parent?.email   || "";
     const parentPassword = parent?.password || "";
     const parentAddress  = parent?.address || "";
+    const fatherName     = parent?.father?.name || "";
+    const fatherCnic     = parent?.father?.cnic || "";
+    const fatherMobile   = parent?.father?.mobile || "";
+    const motherName     = parent?.mother?.name || "";
+    const motherCnic     = parent?.mother?.cnic || "";
+    const motherMobile   = parent?.mother?.mobile || "";
 
     // ── Validation ────────────────────────────────────────────────────────────
     const errors = [];
-    if (!studentId || !schoolId) errors.push("studentId and schoolId are required.");
-    if (!firstName?.trim()) errors.push("First name is required.");
+    
+    if (!studentId) errors.push("Student ID is required");
+    if (!schoolId) errors.push("School ID is required");
+    if (!adminId) errors.push("Admin ID is required");
+    if (!headId) errors.push("Head ID is required");
+    if (!firstName?.trim()) errors.push("First name is required");
+    if (!teacherId) errors.push("Teacher Incharge is required");
+    
     const rd = onlyDigits(rollNo);
-    if (!rd || rd.length < 1 || rd.length > 10) errors.push("Roll number must be 1–10 digits.");
-    if (!studentEmail || !studentEmail.includes("@")) errors.push("Valid student email required.");
-    if (studentPassword && studentPassword.length < 6) errors.push("Student password min 6 characters.");
-    if (!parentName?.trim()) errors.push("Parent name required.");
+    if (!rd || rd.length < 1 || rd.length > 10) {
+      errors.push("Roll number must be 1–10 digits");
+    }
+    
+    if (!studentEmail || !studentEmail.includes("@")) {
+      errors.push("Valid student email required");
+    }
+    
+    if (studentPassword && studentPassword.length < 6) {
+      errors.push("Student password must be at least 6 characters");
+    }
+    
+    if (!parentName?.trim()) errors.push("Parent name required");
+    
     const pd = onlyDigits(parentPhone);
-    if (pd.length < 10 || pd.length > 14) errors.push("Parent phone must be 10–14 digits.");
-    if (!parentEmail || !parentEmail.includes("@")) errors.push("Valid parent email required.");
-    if (!selectedClass) errors.push("Class is required.");
-    if (!selectedSection) errors.push("Section is required.");
-    if (!Array.isArray(selectedSubjects) || selectedSubjects.length === 0)
-      errors.push("Select at least one subject.");
-    if (toNumber(monthlyFee) <= 0) errors.push("Monthly fee must be > 0.");
+    if (pd.length < 10 || pd.length > 14) {
+      errors.push("Parent phone must be 10–14 digits");
+    }
+    
+    if (!parentEmail || !parentEmail.includes("@")) {
+      errors.push("Valid parent email required");
+    }
+    
+    if (!selectedClass) errors.push("Class is required");
+    if (!selectedSection) errors.push("Section is required");
+    
+    if (!Array.isArray(selectedSubjects) || selectedSubjects.length === 0) {
+      errors.push("Select at least one subject");
+    }
+    
+    if (toNumber(monthlyFee) <= 0) errors.push("Monthly fee must be greater than 0");
+    
     const dd2 = toNumber(dueDay);
-    if (!(dd2 >= 1 && dd2 <= 28)) errors.push("Due day must be 1–28.");
+    if (!(dd2 >= 1 && dd2 <= 28)) errors.push("Due day must be between 1 and 28");
 
     if (errors.length > 0) {
-      return NextResponse.json({ success: false, message: errors.join(" | ") }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: errors.join(" | ") }, 
+        { status: 400 }
+      );
     }
 
     // ── Student must exist ────────────────────────────────────────────────────
     const studentRef  = db.collection("students").doc(studentId);
     const studentSnap = await studentRef.get();
+    
     if (!studentSnap.exists) {
-      return NextResponse.json({ success: false, message: "Student not found." }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Student not found" }, 
+        { status: 404 }
+      );
     }
+    
     const existingData = studentSnap.data();
 
     // ── Duplicate roll check (excluding current student) ──────────────────────
@@ -497,63 +610,175 @@ export async function PUT(request) {
 
     if (!dupRollSnap.empty && dupRollSnap.docs.some((d) => d.id !== studentId)) {
       return NextResponse.json(
-        { success: false, message: `Roll no ${rd} already exists in this class/section.` },
+        { 
+          success: false, 
+          message: `Roll number ${rd} already exists in ${className || selectedClass} - Section ${selectedSection}` 
+        },
         { status: 409 }
       );
     }
 
-    // ── Build parent object ───────────────────────────────────────────────────
-    const parentUpdate = {
-      name: parentName.trim() || existingData.parent?.name,
-      phone: onlyDigits(parentPhone) || existingData.parent?.phone,
-      email: parentEmail.trim().toLowerCase() || existingData.parent?.email,
-      address: parentAddress?.trim() || existingData.parent?.address || "",
-    };
-    if (parentPassword && parentPassword.length >= 6) parentUpdate.password = parentPassword;
-    else if (existingData.parent?.password) parentUpdate.password = existingData.parent.password;
+    // ── Check email duplicate (excluding current student) ─────────────────────
+    if (studentEmail && studentEmail !== existingData.email) {
+      const normalizedNewEmail = studentEmail.trim().toLowerCase();
+      const emailCheckResult = await checkEmailExists(normalizedNewEmail);
+      
+      if (emailCheckResult.exists) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Email ${normalizedNewEmail} is already in use by another ${emailCheckResult.role || 'user'}`
+          },
+          { status: 409 }
+        );
+      }
+      
+      const dupEmailSnap = await db
+        .collection("students")
+        .where("email", "==", normalizedNewEmail)
+        .where("schoolId", "==", schoolId)
+        .get();
+      
+      if (!dupEmailSnap.empty && dupEmailSnap.docs.some((d) => d.id !== studentId)) {
+        return NextResponse.json(
+          { success: false, message: "This email is already used by another student in this school" },
+          { status: 409 }
+        );
+      }
+    }
 
-    // ── Build fee object ──────────────────────────────────────────────────────
+    // ── Build parent object with all fields ───────────────────────────────────
+    const parentUpdate = {
+      name: parentName.trim() || existingData.parent?.name || "",
+      phone: onlyDigits(parentPhone) || existingData.parent?.phone || "",
+      email: parentEmail.trim().toLowerCase() || existingData.parent?.email || "",
+      address: parentAddress?.trim() || existingData.parent?.address || "",
+      father: {
+        name: fatherName || existingData.parent?.father?.name || "",
+        cnic: fatherCnic || existingData.parent?.father?.cnic || "",
+        mobile: fatherMobile || existingData.parent?.father?.mobile || ""
+      },
+      mother: {
+        name: motherName || existingData.parent?.mother?.name || "",
+        cnic: motherCnic || existingData.parent?.mother?.cnic || "",
+        mobile: motherMobile || existingData.parent?.mother?.mobile || ""
+      }
+    };
+    
+    if (parentPassword && parentPassword.length >= 6) {
+      parentUpdate.password = parentPassword;
+    } else if (existingData.parent?.password) {
+      parentUpdate.password = existingData.parent.password;
+    }
+
+    // ── Build fee object with all fields ──────────────────────────────────────
     const feeUpdate = {
       admissionOneTime: toNumber(admissionFee) || existingData.fee?.admissionOneTime || 0,
       dueDay: toNumber(dueDay) || existingData.fee?.dueDay || 5,
       monthly: toNumber(monthlyFee) || existingData.fee?.monthly || 0,
-      outstanding: existingData.fee?.outstanding || 0,
+      outstanding: toNumber(outstanding) || existingData.fee?.outstanding || 0,
+      previousPending: toNumber(previousPending) || existingData.fee?.previousPending || 0,
+      registration: toNumber(registration) || existingData.fee?.registration || 0,
+      annual: toNumber(annual) || existingData.fee?.annual || 0,
+      other: toNumber(other) || existingData.fee?.other || 0,
       reminder: {
         enabled: autoReminder !== undefined ? !!autoReminder : existingData.fee?.reminder?.enabled || false,
         daysBefore: reminderDaysBefore !== undefined ? parseInt(String(reminderDaysBefore), 10) : existingData.fee?.reminder?.daysBefore || 3,
         channel: notifyVia || existingData.fee?.reminder?.channel || "WhatsApp",
+        security: security !== undefined ? security : existingData.fee?.reminder?.security || false,
+        tuition: tuition !== undefined ? tuition : existingData.fee?.reminder?.tuition || false
       },
     };
 
-    // ── Update payload ────────────────────────────────────────────────────────
+    // ── Build admission payment object ────────────────────────────────────────
+    const admissionPaymentUpdate = {
+      admissionPaid: toNumber(admissionPaid) || existingData.admissionPayment?.admissionPaid || 0,
+      annualPaid: toNumber(annualPaid) || existingData.admissionPayment?.annualPaid || 0,
+      balance: toNumber(balance) || existingData.admissionPayment?.balance || 0,
+      depositDate: depositDate || existingData.admissionPayment?.depositDate || null,
+      depositStatus: depositStatus || existingData.admissionPayment?.depositStatus || "pending",
+      month: month || existingData.admissionPayment?.month || null,
+      prevPendingPaid: toNumber(prevPendingPaid) || existingData.admissionPayment?.prevPendingPaid || 0,
+      registrationPaid: toNumber(registrationPaid) || existingData.admissionPayment?.registrationPaid || 0,
+      remarks: remarks || existingData.admissionPayment?.remarks || "",
+      securityPaid: toNumber(securityPaid) || existingData.admissionPayment?.securityPaid || 0,
+      totalDue: toNumber(totalDue) || existingData.admissionPayment?.totalDue || 0,
+      totalPaid: toNumber(totalPaid) || existingData.admissionPayment?.totalPaid || 0
+    };
+
+    // ── Update payload with all fields ────────────────────────────────────────
     const updateData = {
+      // Basic info
       firstName: firstName.trim(),
       lastName: (lastName || "").trim(),
       rollNo: rd,
-      gender,
-      dob: (dob || "").trim(),
-      email: studentEmail.trim().toLowerCase(),
-      parent: parentUpdate,
+      gender: gender || existingData.gender || "",
+      dob: dob || existingData.dob || "",
+      religion: religion || existingData.religion || "",
+      email: studentEmail ? studentEmail.trim().toLowerCase() : existingData.email,
+      
+      // School info
+      schoolId: schoolId || existingData.schoolId,
+      adminId: adminId || existingData.adminId,
+      headId: headId || existingData.headId,
+      schoolName: schoolName || existingData.schoolName || "",
+      
+      // Teacher info
+      teacherId: teacherId || existingData.teacherId,
+      teacherName: teacherName || existingData.teacherName || "",
+      
+      // Class info
       classId: selectedClass,
       className: className || selectedClass,
-      group: group || null,
       section: selectedSection,
+      group: group || existingData.group || null,
       subjects: selectedSubjects,
+      
+      // Role and status
+      role: role || existingData.role || "student",
+      status: status || existingData.status || "active",
+      
+      // Parent, fee, payment
+      parent: parentUpdate,
       fee: feeUpdate,
+      admissionPayment: admissionPaymentUpdate,
+      
+      // Optional fields
+      imageUrl: imageUrl !== undefined ? imageUrl : existingData.imageUrl,
+      
+      // Update timestamp
+      updatedAt: new Date().toISOString()
     };
 
-    if (teacherId) updateData.teacherId = teacherId;
-    if (studentPassword && studentPassword.length >= 6) updateData.password = studentPassword;
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    // Add password only if provided
+    if (studentPassword && studentPassword.length >= 6) {
+      updateData.password = studentPassword;
+    }
 
+    // Remove any undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    // ── Update Firestore ──────────────────────────────────────────────────────
     await studentRef.update(updateData);
 
+    // ── Fetch and return updated student ──────────────────────────────────────
     const updatedDoc = await studentRef.get();
     const result = { id: updatedDoc.id, ...updatedDoc.data() };
+    
+    // Remove sensitive data
     delete result.password;
     if (result.parent?.password) delete result.parent.password;
 
-    return NextResponse.json({ success: true, message: "Student updated successfully.", student: result });
+    return NextResponse.json({ 
+      success: true, 
+      message: "Student updated successfully", 
+      student: result 
+    });
+    
   } catch (error) {
     console.error("Admission PUT error:", error);
     return NextResponse.json(
