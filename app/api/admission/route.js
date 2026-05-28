@@ -407,47 +407,72 @@ export async function POST(request) {
 // ═════════════════════════════════════════════════════════════════════════════
 export async function GET(request) {
   console.log("=== API GET /admission called ===");
-  
+
   try {
-    // Get ALL students from database
-    const snapshot = await db.collection("students").get();
-    
-    console.log("Total students found:", snapshot.size);
+    // URL se schoolId lo
+    const { searchParams } = new URL(request.url);
+    const schoolId = searchParams.get("schoolId");
+
+    console.log("School ID:", schoolId);
+
+    // Agar schoolId nahi aya
+    if (!schoolId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "schoolId is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // schoolId ke according students fetch karo
+    const snapshot = await db
+      .collection("students")
+      .where("schoolId", "==", schoolId)
+      .get();
+
+    console.log("Students found:", snapshot.size);
 
     if (snapshot.empty) {
-      return NextResponse.json({ 
-        success: true, 
-        students: [], 
+      return NextResponse.json({
+        success: true,
+        students: [],
         total: 0,
-        message: "No students found in database"
+        message: "No students found",
       });
     }
 
-    // Remove sensitive data from all students
     const students = snapshot.docs.map((doc) => {
-      const data = { 
-        id: doc.id, 
-        ...doc.data() 
+      const data = {
+        id: doc.id,
+        ...doc.data(),
       };
-      
-      // Remove sensitive information
+
+      // sensitive data remove
       delete data.password;
-      if (data.parent?.password) delete data.parent.password;
-      
+
+      if (data.parent?.password) {
+        delete data.parent.password;
+      }
+
       return data;
     });
 
-    return NextResponse.json({ 
-      success: true, 
-        total: students.length,
-      students, 
-    
+    return NextResponse.json({
+      success: true,
+      total: students.length,
+      students,
     });
-    
+
   } catch (error) {
     console.error("Admission GET error:", error);
+
     return NextResponse.json(
-      { success: false, message: "Failed to fetch students: " + error.message },
+      {
+        success: false,
+        message: "Failed to fetch students: " + error.message,
+      },
       { status: 500 }
     );
   }
@@ -458,31 +483,22 @@ export async function GET(request) {
 // ═════════════════════════════════════════════════════════════════════════════
 export async function PUT(request) {
   try {
-
-      const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     const body = await request.json();
-
+    console.log("data", body);
+    
     const {
-      schoolId,
       adminId,
       headId,
-      firstName, 
-      lastName, 
-      rollNo, 
-      gender, 
+      schoolId,
+      teacherId,
+      classId,
+      className,
       dob,
-      religion,
-      email: studentEmail, 
-      password: studentPassword,
-      parent,
-      classId: selectedClass, 
-      className, 
-      section: selectedSection, 
-      group, 
-      subjects: selectedSubjects,
+      email: studentEmail,
       fee: {
-        admissionOneTime: admissionFee,
+        admissionOneTime,
         dueDay,
         monthly: monthlyFee,
         outstanding,
@@ -492,18 +508,33 @@ export async function PUT(request) {
         other
       },
       reminder: {
-        channel: notifyVia,
+        channel,
         daysBefore: reminderDaysBefore,
         enabled: autoReminder,
         security,
         tuition
       },
+      firstName,
+      gender,
+      group,
       imageUrl,
-      teacherId,
-      teacherName,
-      schoolName,
-      role,
-      status,
+      lastName,
+      parent: {
+        address: parentAddress,
+        email: parentEmail,
+        password: parentPassword,
+        phone: parentPhone,
+        father: {
+          cnic: fatherCnic,
+          mobile: fatherMobile,
+          name: fatherName
+        },
+        mother: {
+          cnic: motherCnic,
+          mobile: motherMobile,
+          name: motherName
+        }
+      },
       admissionPayment: {
         admissionPaid,
         annualPaid,
@@ -517,26 +548,21 @@ export async function PUT(request) {
         securityPaid,
         totalDue,
         totalPaid
-      }
+      },
+      password: studentPassword,
+      role,
+      religion,
+      rollNo,
+      schoolName,
+      section: selectedSection,
+      status,
+      teacherName,
+      subjects: selectedSubjects
     } = body;
-
-    // ── Extract parent fields ─────────────────────────────────────────────────
-    const parentName     = parent?.name    || "";
-    const parentPhone    = parent?.phone   || "";
-    const parentEmail    = parent?.email   || "";
-    const parentPassword = parent?.password || "";
-    const parentAddress  = parent?.address || "";
-    const fatherName     = parent?.father?.name || "";
-    const fatherCnic     = parent?.father?.cnic || "";
-    const fatherMobile   = parent?.father?.mobile || "";
-    const motherName     = parent?.mother?.name || "";
-    const motherCnic     = parent?.mother?.cnic || "";
-    const motherMobile   = parent?.mother?.mobile || "";
 
     // ── Validation ────────────────────────────────────────────────────────────
     const errors = [];
     
-    if (!studentId) errors.push("Student ID is required");
     if (!schoolId) errors.push("School ID is required");
     if (!adminId) errors.push("Admin ID is required");
     if (!headId) errors.push("Head ID is required");
@@ -556,7 +582,6 @@ export async function PUT(request) {
       errors.push("Student password must be at least 6 characters");
     }
     
-    if (!parentName?.trim()) errors.push("Parent name required");
     
     const pd = onlyDigits(parentPhone);
     if (pd.length < 10 || pd.length > 14) {
@@ -567,7 +592,7 @@ export async function PUT(request) {
       errors.push("Valid parent email required");
     }
     
-    if (!selectedClass) errors.push("Class is required");
+    if (!classId) errors.push("Class is required");
     if (!selectedSection) errors.push("Section is required");
     
     if (!Array.isArray(selectedSubjects) || selectedSubjects.length === 0) {
@@ -587,7 +612,7 @@ export async function PUT(request) {
     }
 
     // ── Student must exist ────────────────────────────────────────────────────
-    const studentRef  = db.collection("students").doc(studentId);
+    const studentRef = db.collection("students").doc(studentId);
     const studentSnap = await studentRef.get();
     
     if (!studentSnap.exists) {
@@ -603,7 +628,7 @@ export async function PUT(request) {
     const dupRollSnap = await db
       .collection("students")
       .where("rollNo", "==", rd)
-      .where("classId", "==", selectedClass)
+      .where("classId", "==", classId)
       .where("section", "==", selectedSection)
       .where("schoolId", "==", schoolId)
       .get();
@@ -612,7 +637,7 @@ export async function PUT(request) {
       return NextResponse.json(
         { 
           success: false, 
-          message: `Roll number ${rd} already exists in ${className || selectedClass} - Section ${selectedSection}` 
+          message: `Roll number ${rd} already exists in ${className || classId} - Section ${selectedSection}` 
         },
         { status: 409 }
       );
@@ -647,9 +672,9 @@ export async function PUT(request) {
       }
     }
 
-    // ── Build parent object with all fields ───────────────────────────────────
+    // ── Build parent object with mother and father ───────────────────────────
     const parentUpdate = {
-      name: parentName.trim() || existingData.parent?.name || "",
+      name: fatherName || existingData.parent?.name || "",
       phone: onlyDigits(parentPhone) || existingData.parent?.phone || "",
       email: parentEmail.trim().toLowerCase() || existingData.parent?.email || "",
       address: parentAddress?.trim() || existingData.parent?.address || "",
@@ -673,7 +698,7 @@ export async function PUT(request) {
 
     // ── Build fee object with all fields ──────────────────────────────────────
     const feeUpdate = {
-      admissionOneTime: toNumber(admissionFee) || existingData.fee?.admissionOneTime || 0,
+      admissionOneTime: toNumber(admissionOneTime) || existingData.fee?.admissionOneTime || 0,
       dueDay: toNumber(dueDay) || existingData.fee?.dueDay || 5,
       monthly: toNumber(monthlyFee) || existingData.fee?.monthly || 0,
       outstanding: toNumber(outstanding) || existingData.fee?.outstanding || 0,
@@ -684,10 +709,10 @@ export async function PUT(request) {
       reminder: {
         enabled: autoReminder !== undefined ? !!autoReminder : existingData.fee?.reminder?.enabled || false,
         daysBefore: reminderDaysBefore !== undefined ? parseInt(String(reminderDaysBefore), 10) : existingData.fee?.reminder?.daysBefore || 3,
-        channel: notifyVia || existingData.fee?.reminder?.channel || "WhatsApp",
+        channel: channel || existingData.fee?.reminder?.channel || "WhatsApp",
         security: security !== undefined ? security : existingData.fee?.reminder?.security || false,
         tuition: tuition !== undefined ? tuition : existingData.fee?.reminder?.tuition || false
-      },
+      }
     };
 
     // ── Build admission payment object ────────────────────────────────────────
@@ -728,8 +753,8 @@ export async function PUT(request) {
       teacherName: teacherName || existingData.teacherName || "",
       
       // Class info
-      classId: selectedClass,
-      className: className || selectedClass,
+      classId: classId,
+      className: className || classId,
       section: selectedSection,
       group: group || existingData.group || null,
       subjects: selectedSubjects,

@@ -69,6 +69,59 @@ const SUBJECTS_11_12 = {
 
 const DEFAULT_SECTIONS = ["A", "B", "C"];
 
+// ── Empty Form Template ──────────────────────────────────────────────────────
+const emptyForm = {
+  firstName: "",
+  lastName: "",
+  parentPhone: "",
+  rollNo: "",
+  className: "",
+  section: "",
+  gender: "",
+  address: "",
+  email: "",
+  parentName: "",
+  parentEmail: "",
+  dob: "",
+  group: "",
+  selectedSubjects: [],
+  dueDay: "10",
+  religion: "",
+  fatherCnic: "",
+  fatherMobile: "",
+  motherName: "",
+  motherCnic: "",
+  motherMobile: "",
+  fee: {
+    tuition: "",
+    monthly: "500",
+    admissionOneTime: "1000",
+    registration: "500",
+    security: "1000",
+    outstanding: "0",
+    previousPending: "0",
+    annual: "0",
+    other: "0"
+  },
+  notifyVia: "SMS",
+  reminderDaysBefore: 3,
+  autoReminder: true,
+  reminderSecurity: false,
+  reminderTuition: true,
+  admissionPaid: "0",
+  annualPaid: "0",
+  balance: "0",
+  depositDate: "",
+  depositStatus: "pending",
+  paymentMonth: "",
+  prevPendingPaid: "0",
+  registrationPaid: "0",
+  remarks: "",
+  securityPaid: "0",
+  totalDue: "0",
+  totalPaid: "0"
+};
+
 // ── Image Upload ────────────────────────────────────────────────────────────────
 const uploadImageToServer = async (file) => {
   const formData = new FormData();
@@ -148,31 +201,6 @@ export default function StudentsPage() {
   const [extraSubjects, setExtraSubjects] = useState([]);
 
   const admin = useSelector((s) => s.users.loginuser);
-
-  const emptyForm = {
-    firstName: "",
-    lastName: "",
-    parentPhone: "",
-    rollNo: "",
-    className: "",
-    section: "",
-    gender: "",
-    address: "",
-    email: "",
-    parentName: "",
-    parentEmail: "",
-    dob: "",
-    group: "",
-    selectedSubjects: [],
-    dueDay: "10",
-    fee: {
-      tuition: "",
-      monthly: "500",
-      admissionOneTime: "1000",
-      registration: "500",
-      security: "1000"
-    }
-  };
 
   const [formData, setFormData] = useState(emptyForm);
 
@@ -276,7 +304,13 @@ export default function StudentsPage() {
           fee: student.fee || {},
           parent: student.parent,
           dueDay: student.dueDay || "10",
-          selectedSubjects: student.selectedSubjects || student.subjects || []
+          selectedSubjects: student.selectedSubjects || student.subjects || [],
+          teacherId: student.teacherId,
+          teacherName: student.teacherName,
+          religion: student.religion,
+          imageUrl: student.imageUrl,
+          admissionPayment: student.admissionPayment,
+          reminder: student.reminder
         }));
         
         setStudents(transformedStudents);
@@ -527,34 +561,75 @@ export default function StudentsPage() {
       if (editStudent) {
         const updatePayload = {
           studentId: editStudent.id,
+          adminId: adminId,
+          headId: headId || admin?.id,
           schoolId: schoolId,
+          teacherId: selectedTeacher?.teacherId || selectedTeacher?.id || teacherId,
+          classId: formData.className,
+          className: formData.className,
+          dob: formData.dob || "2000-01-01",
+          email: formData.email || `${formData.firstName.toLowerCase()}.${formData.lastName.toLowerCase()}@school.com`,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          rollNo: formData.rollNo,
           gender: formData.gender,
-          dob: formData.dob || "2000-01-01",
-          studentEmail: formData.email || `${formData.firstName.toLowerCase()}.${formData.lastName.toLowerCase()}@school.com`,
-          className: formData.className,
-          selectedClass: formData.className,
-          section: formData.section,
-          selectedSection: formData.section,
+          rollNo: formData.rollNo,
+          religion: formData.religion || "",
           group: formData.group || null,
-          selectedSubjects: formData.selectedSubjects,
+          imageUrl: imageUrl,
+          schoolName: schoolName || "Knowledge School",
+          section: formData.section,
+          status: "active",
+          role: "student",
+          teacherName: selectedTeacher?.name || "",
+          password: "password123",
+          subjects: formData.selectedSubjects,
+          fee: {
+            admissionOneTime: parseInt(formData.fee.admissionOneTime) || 0,
+            dueDay: parseInt(formData.dueDay) || 10,
+            monthly: parseInt(formData.fee.monthly) || 0,
+            outstanding: parseInt(formData.fee.outstanding) || 0,
+            previousPending: parseInt(formData.fee.previousPending) || 0,
+            registration: parseInt(formData.fee.registration) || 0,
+            annual: parseInt(formData.fee.annual) || 0,
+            other: parseInt(formData.fee.other) || 0
+          },
+          reminder: {
+            channel: formData.notifyVia || "SMS",
+            daysBefore: formData.reminderDaysBefore || 3,
+            enabled: formData.autoReminder !== false,
+            security: formData.reminderSecurity || false,
+            tuition: formData.reminderTuition !== false
+          },
           parent: {
-            name: formData.parentName,
-            phone: formData.parentPhone,
+            address: formData.address || "Address not provided",
             email: formData.parentEmail || `${formData.parentPhone}@parent.com`,
             password: "password123",
-            address: formData.address || "Address not provided"
+            phone: formData.parentPhone,
+            father: {
+              cnic: formData.fatherCnic || "",
+              mobile: formData.fatherMobile || "",
+              name: formData.parentName || ""
+            },
+            mother: {
+              cnic: formData.motherCnic || "",
+              mobile: formData.motherMobile || "",
+              name: formData.motherName || ""
+            }
           },
-          admissionFee: parseInt(formData.fee.admissionOneTime) || 0,
-          monthlyFee: parseInt(formData.fee.monthly) || 0,
-          dueDay: parseInt(formData.dueDay) || 10,
-          autoReminder: true,
-          reminderDaysBefore: 3,
-          notifyVia: "SMS",
-          imageUrl: imageUrl,
-          teacherId: selectedTeacher?.teacherId || selectedTeacher?.id || teacherId
+          admissionPayment: {
+            admissionPaid: parseInt(formData.admissionPaid) || 0,
+            annualPaid: parseInt(formData.annualPaid) || 0,
+            balance: parseInt(formData.balance) || 0,
+            depositDate: formData.depositDate || new Date().toISOString().split('T')[0],
+            depositStatus: formData.depositStatus || "pending",
+            month: formData.paymentMonth || new Date().toLocaleString('default', { month: 'long' }),
+            prevPendingPaid: parseInt(formData.prevPendingPaid) || 0,
+            registrationPaid: parseInt(formData.registrationPaid) || 0,
+            remarks: formData.remarks || "",
+            securityPaid: parseInt(formData.securityPaid) || 0,
+            totalDue: parseInt(formData.totalDue) || 0,
+            totalPaid: parseInt(formData.totalPaid) || 0
+          }
         };
         
         const response = await updateStudent(updatePayload);
@@ -568,42 +643,79 @@ export default function StudentsPage() {
           throw new Error(response.data.message);
         }
       } else {
+        // Create operation
         const createPayload = {
           adminId: adminId,
           headId: headId || admin?.id,
           schoolId: schoolId,
           schoolName: schoolName || "Knowledge School",
           teacherId: selectedTeacher?.teacherId || selectedTeacher?.id || teacherId || admin?.teacherId,
+          teacherName: selectedTeacher?.name || "",
           firstName: formData.firstName,
           lastName: formData.lastName,
           rollNo: formData.rollNo,
           gender: formData.gender,
           dob: formData.dob || "2000-01-01",
-          studentEmail: formData.email || `${formData.firstName.toLowerCase()}.${formData.lastName.toLowerCase()}@school.com`,
-          studentPassword: "password123",
-          className: formData.className,
-          selectedClass: formData.className,
-          section: formData.section,
-          selectedSection: formData.section,
+          email: formData.email || `${formData.firstName.toLowerCase()}.${formData.lastName.toLowerCase()}@school.com`,
+          password: "password123",
+          religion: formData.religion || "",
           group: formData.group || null,
-          selectedSubjects: formData.selectedSubjects,
+          subjects: formData.selectedSubjects,
+          classId: formData.className,
+          className: formData.className,
+          section: formData.section,
+          imageUrl: imageUrl,
+          role: "student",
+          status: "active",
+          fee: {
+            admissionOneTime: parseInt(formData.fee.admissionOneTime) || 0,
+            dueDay: parseInt(formData.dueDay) || 10,
+            monthly: parseInt(formData.fee.monthly) || 0,
+            outstanding: 0,
+            previousPending: 0,
+            registration: parseInt(formData.fee.registration) || 0,
+            annual: 0,
+            other: 0
+          },
+          reminder: {
+            channel: "SMS",
+            daysBefore: 3,
+            enabled: true,
+            security: false,
+            tuition: true
+          },
           parent: {
-            name: formData.parentName,
-            phone: formData.parentPhone,
+            address: formData.address || "Address not provided",
             email: formData.parentEmail || `${formData.parentPhone}@parent.com`,
             password: "password123",
-            address: formData.address || "Address not provided"
+            phone: formData.parentPhone,
+            father: {
+              cnic: formData.fatherCnic || "",
+              mobile: formData.fatherMobile || "",
+              name: formData.parentName || ""
+            },
+            mother: {
+              cnic: formData.motherCnic || "",
+              mobile: formData.motherMobile || "",
+              name: formData.motherName || ""
+            }
           },
-          admissionFee: parseInt(formData.fee.admissionOneTime) || 0,
-          monthlyFee: parseInt(formData.fee.monthly) || 0,
-          dueDay: parseInt(formData.dueDay) || 10,
-          autoReminder: true,
-          reminderDaysBefore: 3,
-          notifyVia: "SMS",
-          imageUrl: imageUrl
+          admissionPayment: {
+            admissionPaid: 0,
+            annualPaid: 0,
+            balance: 0,
+            depositDate: new Date().toISOString().split('T')[0],
+            depositStatus: "pending",
+            month: new Date().toLocaleString('default', { month: 'long' }),
+            prevPendingPaid: 0,
+            registrationPaid: 0,
+            remarks: "",
+            securityPaid: 0,
+            totalDue: parseInt(formData.fee.admissionOneTime) + parseInt(formData.fee.monthly),
+            totalPaid: 0
+          }
         };
         
-        console.log("Create payload:", createPayload);
         const response = await createAdmission(createPayload);
         
         if (response.data.success) {
@@ -664,35 +776,94 @@ export default function StudentsPage() {
   const openEdit = (s) => {
     console.log("Editing student:", s);
     
-    let subjects = s.selectedSubjects || [];
+    let subjects = s.subjects || s.selectedSubjects || [];
     if (!Array.isArray(subjects)) {
       subjects = [];
     }
     
+    // Set the selected teacher - IMPORTANT FIX
+    if (s.teacherId) {
+      const teacher = teachers.find(t => (t.teacherId || t.id) === s.teacherId);
+      setSelectedTeacher(teacher || null);
+      console.log("Found teacher:", teacher);
+    } else {
+      setSelectedTeacher(null);
+    }
+    
+    // Set image preview if exists
+    if (s.imageUrl) {
+      setImagePreview(s.imageUrl);
+    } else {
+      setImagePreview("");
+    }
+    setImageFile(null);
+    
     setEditStudent(s);
     setFormData({
+      // Basic Info
       firstName: s.firstName || "",
       lastName: s.lastName || "",
-      parentPhone: s.parentPhone || s.parent?.phone || "",
       rollNo: s.rollNo || "",
-      className: s.className || "",
-      section: s.section || "",
       gender: s.gender || "",
-      address: s.address || s.parent?.address || "",
-      email: s.email || "",
-      parentName: s.parentName || s.parent?.name || "",
-      parentEmail: s.parentEmail || s.parent?.email || "",
       dob: s.dob || "",
+      religion: s.religion || "",
+      email: s.email || "",
+      
+      // Academic Info
+      className: s.className || s.classId || "",
+      section: s.section || "",
       group: s.group || "",
       selectedSubjects: subjects,
-      dueDay: s.dueDay || "10",
+      
+      // Parent/Guardian Info
+      parentName: s.parent?.father?.name || s.parent?.name || "",
+      parentPhone: s.parent?.phone || "",
+      parentEmail: s.parent?.email || "",
+      address: s.parent?.address || "",
+      
+      // Father Info
+      fatherCnic: s.parent?.father?.cnic || "",
+      fatherMobile: s.parent?.father?.mobile || "",
+      
+      // Mother Info
+      motherName: s.parent?.mother?.name || "",
+      motherCnic: s.parent?.mother?.cnic || "",
+      motherMobile: s.parent?.mother?.mobile || "",
+      
+      // Fee Structure
+      dueDay: s.fee?.dueDay || "10",
       fee: {
-        tuition: s.fee?.tuition || "",
-        monthly: s.fee?.monthly || "500",
         admissionOneTime: s.fee?.admissionOneTime || "1000",
+        monthly: s.fee?.monthly || "500",
         registration: s.fee?.registration || "500",
-        security: s.fee?.security || "1000"
-      }
+        security: s.fee?.security || "1000",
+        tuition: s.fee?.tuition || "",
+        outstanding: s.fee?.outstanding || "0",
+        previousPending: s.fee?.previousPending || "0",
+        annual: s.fee?.annual || "0",
+        other: s.fee?.other || "0"
+      },
+      
+      // Reminder Settings
+      notifyVia: s.fee?.reminder?.channel || s.reminder?.channel || "SMS",
+      reminderDaysBefore: s.fee?.reminder?.daysBefore || s.reminder?.daysBefore || 3,
+      autoReminder: s.fee?.reminder?.enabled !== false && s.reminder?.enabled !== false,
+      reminderSecurity: s.fee?.reminder?.security || s.reminder?.security || false,
+      reminderTuition: s.fee?.reminder?.tuition !== false && s.reminder?.tuition !== false,
+      
+      // Admission Payment
+      admissionPaid: s.admissionPayment?.admissionPaid || "0",
+      annualPaid: s.admissionPayment?.annualPaid || "0",
+      balance: s.admissionPayment?.balance || "0",
+      depositDate: s.admissionPayment?.depositDate || "",
+      depositStatus: s.admissionPayment?.depositStatus || "pending",
+      paymentMonth: s.admissionPayment?.month || "",
+      prevPendingPaid: s.admissionPayment?.prevPendingPaid || "0",
+      registrationPaid: s.admissionPayment?.registrationPaid || "0",
+      remarks: s.admissionPayment?.remarks || "",
+      securityPaid: s.admissionPayment?.securityPaid || "0",
+      totalDue: s.admissionPayment?.totalDue || "0",
+      totalPaid: s.admissionPayment?.totalPaid || "0"
     });
     
     setShowModal(true);
@@ -708,11 +879,6 @@ export default function StudentsPage() {
 
   const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm";
   const labelCls = "block text-sm font-medium text-gray-700 mb-1";
-
-  // Loading Spinner Component
-  const LoadingSpinner = () => (
-    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-  );
 
   if (loading && !schoolId) {
     return (
@@ -735,7 +901,12 @@ export default function StudentsPage() {
               School: {schoolName || "Loading..."} | ID: {schoolId}
             </p>
           </div>
-       
+          <button 
+            onClick={openAdd}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+          >
+            + Add New Student
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -749,8 +920,6 @@ export default function StudentsPage() {
           />
         </div>
 
-      
-
         {/* Students Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
           <div className="min-w-[800px]">
@@ -759,6 +928,7 @@ export default function StudentsPage() {
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Roll No</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Full Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Teacher</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Parent Name</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Class</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
@@ -769,7 +939,7 @@ export default function StudentsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <div className="flex justify-center items-center gap-2">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
                         <span className="text-gray-500">Loading students...</span>
@@ -778,7 +948,7 @@ export default function StudentsPage() {
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
                       {search ? "No matching students found" : "No students found"}
                     </td>
                   </tr>
@@ -787,6 +957,7 @@ export default function StudentsPage() {
                     <tr key={s.id} className="border-t border-gray-50 hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 text-sm text-gray-500 font-mono">{s.rollNo}</td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.fullName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{s.teacherName || "-"}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{s.parentName}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">
                         {s.className} {s.section && `- ${s.section}`}
@@ -910,9 +1081,8 @@ export default function StudentsPage() {
                     <input type="date" value={formData.dob} onChange={(e) => setFormData({...formData, dob: e.target.value})} className={inputCls} />
                   </div>
                   <div>
-                    <label className={labelCls}>Profile Photo</label>
-                    <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm" />
-                    {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 h-16 w-16 object-cover rounded-lg border" />}
+                    <label className={labelCls}>Religion</label>
+                    <input type="text" value={formData.religion} onChange={(e) => setFormData({...formData, religion: e.target.value})} className={inputCls} />
                   </div>
                 </div>
 
@@ -921,6 +1091,11 @@ export default function StudentsPage() {
                     <label className={labelCls}>Student Email</label>
                     <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className={inputCls} />
                   </div>
+                  <div>
+                    <label className={labelCls}>Profile Photo</label>
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm" />
+                    {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 h-16 w-16 object-cover rounded-lg border" />}
+                  </div>
                 </div>
 
                 {/* Parent Info */}
@@ -928,19 +1103,41 @@ export default function StudentsPage() {
                   <h3 className="text-lg font-semibold mb-4">Parent / Guardian</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className={labelCls}>Full Name *</label>
+                      <label className={labelCls}>Father Name *</label>
                       <input type="text" value={formData.parentName} onChange={(e) => setFormData({...formData, parentName: e.target.value})} className={inputCls} />
                     </div>
                     <div>
-                      <label className={labelCls}>Phone *</label>
+                      <label className={labelCls}>Father Phone *</label>
                       <input type="tel" value={formData.parentPhone} onChange={(e) => setFormData({...formData, parentPhone: onlyDigits(e.target.value)})} className={inputCls} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
-                      <label className={labelCls}>Email</label>
-                      <input type="email" value={formData.parentEmail} onChange={(e) => setFormData({...formData, parentEmail: e.target.value})} className={inputCls} />
+                      <label className={labelCls}>Father CNIC</label>
+                      <input type="text" value={formData.fatherCnic} onChange={(e) => setFormData({...formData, fatherCnic: e.target.value})} className={inputCls} />
                     </div>
+                    <div>
+                      <label className={labelCls}>Father Mobile</label>
+                      <input type="tel" value={formData.fatherMobile} onChange={(e) => setFormData({...formData, fatherMobile: onlyDigits(e.target.value)})} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                      <label className={labelCls}>Mother Name</label>
+                      <input type="text" value={formData.motherName} onChange={(e) => setFormData({...formData, motherName: e.target.value})} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Mother CNIC</label>
+                      <input type="text" value={formData.motherCnic} onChange={(e) => setFormData({...formData, motherCnic: e.target.value})} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Mother Mobile</label>
+                      <input type="tel" value={formData.motherMobile} onChange={(e) => setFormData({...formData, motherMobile: onlyDigits(e.target.value)})} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className={labelCls}>Parent Email</label>
+                    <input type="email" value={formData.parentEmail} onChange={(e) => setFormData({...formData, parentEmail: e.target.value})} className={inputCls} />
                   </div>
                   <div className="mt-4">
                     <label className={labelCls}>Address</label>
@@ -1035,6 +1232,16 @@ export default function StudentsPage() {
                     <div>
                       <label className={labelCls}>Admission Fee</label>
                       <input type="number" value={formData.fee.admissionOneTime} onChange={(e) => setFormData({...formData, fee: {...formData.fee, admissionOneTime: e.target.value}})} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className={labelCls}>Registration Fee</label>
+                      <input type="number" value={formData.fee.registration} onChange={(e) => setFormData({...formData, fee: {...formData.fee, registration: e.target.value}})} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Security Fee</label>
+                      <input type="number" value={formData.fee.security} onChange={(e) => setFormData({...formData, fee: {...formData.fee, security: e.target.value}})} className={inputCls} />
                     </div>
                   </div>
                   <div className="mt-4">
