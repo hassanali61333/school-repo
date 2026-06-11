@@ -70,26 +70,7 @@ const SUBJECTS_11_12 = {
 const DEFAULT_SECTIONS = ["A", "B", "C"];
 
 // ── Image Upload ────────────────────────────────────────────────────────────────
-const uploadImageToServer = async (file) => {
-  const formData = new FormData();
-  formData.append("image", file);
-  try {
-    const res = await axios.post(
-      "https://futureittechnology.com/picuplode.php",
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" }, timeout: 30000 }
-    );
-    const raw =
-      typeof res.data === "string"
-        ? res.data.trim()
-        : res.data?.url || res.data?.imageUrl || res.data?.path || res.data?.data || null;
-    if (!raw) throw new Error("No filename returned");
-    return raw.split("/").pop();
-  } catch {
-    toast.warn("Image upload failed. Saving without photo.");
-    return null;
-  }
-};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function AdmissionScreen() {
@@ -215,12 +196,13 @@ export default function AdmissionScreen() {
       try {
         const response = await getTeachers(schoolId);
         setTeachers(response?.data?.data || []);
+        console.log("Fetched teachers:", response?.data?.data || []); 
       } catch (err) {
         toast.error(err?.response?.data?.message || err.message);
       } finally {
         setTeachersLoading(false);
       }
-    };
+    }; 
     fetchTeachers();
   }, [schoolId]);
 
@@ -276,18 +258,17 @@ export default function AdmissionScreen() {
     setCustomSubject("");
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image must be less than 2MB");
-      return;
-    }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result);
-    reader.readAsDataURL(file);
+const handleImageChange = (e) => {
+  const file = e.target.files[0];
+
+  const reader = new FileReader();
+
+  reader.onloadend = () => {
+    setImageFile(reader.result);
   };
+
+  reader.readAsDataURL(file);
+};
 
   // Auto-calculate totals
   useEffect(() => {
@@ -328,10 +309,7 @@ export default function AdmissionScreen() {
     setLoading(true);
 
     try {
-      let imageUrl = null;
-      if (imageFile) {
-        imageUrl = await uploadImageToServer(imageFile);
-      }
+    
 
       const payload = {
         // Account Info
@@ -352,8 +330,8 @@ export default function AdmissionScreen() {
         dob: dob || "",
         religion: religion || "",
         email: studentEmail.trim().toLowerCase(),
-        password: studentPassword,
-        imageUrl: imageUrl,
+        password: studentPassword, 
+        imageUrl: imageFile,
         role: role,
         status: status,
         
@@ -540,7 +518,7 @@ export default function AdmissionScreen() {
                     {teachers.map((t) => {
                       const tid = t.teacherId || t.id || t.docId;
                       const name = t.name || t.teacherName || tid;
-                      return <option key={tid} value={tid}>{name}</option>;
+                      return <option key={tid} value={tid}>{name} - Class:  {t.class}{t.section}  </option>;
                     })}
                   </select>
                 )}
@@ -595,7 +573,6 @@ export default function AdmissionScreen() {
               <div>
                 <label className={labelCls}>Profile Photo</label>
                 <input type="file" accept="image/*" onChange={handleImageChange} className="w-full text-sm" />
-                {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 h-16 w-16 object-cover rounded-lg border" />}
               </div>
               <div>
                 <label className={labelCls}>Status</label>

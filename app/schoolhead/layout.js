@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 const navItems = [
   { label: "Dashboard", href: "/schoolhead", icon: "⊞" },
@@ -45,7 +46,11 @@ export default function SchoolHeadLayout({ children }) {
         lg:translate-x-0 lg:z-auto
       `}>
         <div className="p-6 border-b border-gray-700">
-          <div className="text-xl font-bold">🎓 EduAdmin</div>
+          <div className="flex items-center gap-2"> 
+        
+       <Image src="/images/logo.jpeg" alt="Logo" width={50} height={40} /> 
+          <div className="text-xl font-bold d-flex"> StudyProAI</div>
+          </div>
           <div className="text-xs text-gray-500 mt-1">School Head Panel</div>
         </div>
 

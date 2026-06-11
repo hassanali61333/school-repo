@@ -563,6 +563,7 @@ export async function PUT(request) {
     // ── Validation ────────────────────────────────────────────────────────────
     const errors = [];
     
+    if (!studentId) errors.push("Student ID is required");
     if (!schoolId) errors.push("School ID is required");
     if (!adminId) errors.push("Admin ID is required");
     if (!headId) errors.push("Head ID is required");
