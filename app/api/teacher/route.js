@@ -197,7 +197,7 @@ export async function POST(req) {
 }
 
 /* =========================================
-   GET - Fetch teachers by schoolId
+GET - Fetch teachers by schoolId
 ========================================= */
 export async function GET(req) {
   try {
@@ -220,12 +220,12 @@ export async function GET(req) {
 
     const teachers = snapshot.docs.map((doc) => {
       const data = doc.data();
-      // Remove password from response
+    
       const { password, ...safeData } = data;
       return { id: doc.id, ...safeData };
     });
 
-    console.log(`✅ Found ${teachers.length} teachers`);
+   
 
     return NextResponse.json(
       {

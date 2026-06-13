@@ -23,7 +23,7 @@ function generateStudentId() {
 export async function POST(request) {
   try {
     const body = await request.json();
-
+console.log("Received admission data:", body);
     const {
       adminId,
       headId,
@@ -36,19 +36,19 @@ export async function POST(request) {
       fee: {
         admissionOneTime,
         dueDay,
+        security,
         monthly: monthlyFee,
-        outstanding,
         previousPending,
         registration,
         annual,
+        tuition,
         other
       },
       reminder: {
         channel,
         daysBefore: reminderDaysBefore,
         enabled: autoReminder,
-        security,
-        tuition
+    
       },
       firstName,
       gender,
@@ -75,15 +75,18 @@ export async function POST(request) {
         admissionPaid,
         annualPaid,
         balance,
+        month,
         depositDate,
         depositStatus,
-        month,
+        monthlyPaid,
         prevPendingPaid,
         registrationPaid,
         remarks,
         securityPaid,
         totalDue,
-        totalPaid
+        totalPaid,
+          tuitionPaid,
+    otherfeePaid,
       },
       password: studentPassword,
       role,
@@ -93,7 +96,9 @@ export async function POST(request) {
       section: selectedSection,
       status,
       teacherName,
-      subjects: selectedSubjects
+      subjects: selectedSubjects,
+      scholarship,
+      percentage,
     } = body;
 
     // ── Derived fields ──────────────────────────────────────────────────────────
@@ -287,11 +292,12 @@ export async function POST(request) {
       admissionOneTime: toNumber(admissionFee),
       dueDay: toNumber(dueDay),
       monthly: toNumber(monthlyFee),
-      outstanding: toNumber(outstanding) || 0,
       previousPending: toNumber(previousPending) || 0,
       registration: toNumber(registration) || 0,
       annual: toNumber(annual) || 0,
       other: toNumber(other) || 0,
+      security: toNumber(security) || 0,
+      tuition: toNumber(tuition) || 0,
       reminder: {
         enabled: !!autoReminder,
         daysBefore: parseInt(String(reminderDaysBefore), 10) || 0,
@@ -328,13 +334,16 @@ export async function POST(request) {
       balance: toNumber(balance) || 0,
       depositDate: depositDate || null,
       depositStatus: depositStatus || "pending",
-      month: month || null,
+      monthlyPaid: monthlyPaid || null,
       prevPendingPaid: toNumber(prevPendingPaid) || 0,
       registrationPaid: toNumber(registrationPaid) || 0,
       remarks: remarks || "",
       securityPaid: toNumber(securityPaid) || 0,
       totalDue: toNumber(totalDue) || 0,
-      totalPaid: toNumber(totalPaid) || 0
+      totalPaid: toNumber(totalPaid) || 0,
+      tuitionPaid: toNumber(tuitionPaid) || 0,
+      otherfeePaid: toNumber(otherfeePaid) || 0,
+      month: month || null
     };
 
     const studentDoc = {

@@ -97,12 +97,13 @@ export default function AdmissionScreen() {
   const [gender, setGender] = useState("Male");
   const [dob, setDob] = useState("");
   const [religion, setReligion] = useState("");
-  const [studentEmail, setStudentEmail] = useState("");
+  const [studentEmail, setStudentEmail] = useState("@studyproai.com");
   const [studentPassword, setStudentPassword] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [status, setStatus] = useState("active");
   const [role, setRole] = useState("student");
+  const [scholarshipPercent, setScholarshipPercent] = useState("");
 
   // Parent Info
   const [parent, setParent] = useState({
@@ -137,20 +138,19 @@ export default function AdmissionScreen() {
     admissionOneTime: "",
     monthly: "",
     dueDay: "5",
-    outstanding: 0,
-    previousPending: 0,
+    previousPending: '0',
     registration: "",
     annual: "",
-    other: ""
+    other: "",
+    security: "",
+    tuition: ""
   });
 
   // Reminder Settings
   const [reminder, setReminder] = useState({
     enabled: true,
     daysBefore: "3",
-    channel: "WhatsApp",
-    security: false,
-    tuition: true
+    channel: "WhatsApp"
   });
 
   // Admission Payment
@@ -160,17 +160,22 @@ export default function AdmissionScreen() {
     balance: 0,
     depositDate: "",
     depositStatus: "pending",
-    month: "",
+    monthlyPaid: "",
     prevPendingPaid: 0,
     registrationPaid: "",
     remarks: "",
     securityPaid: "",
     totalDue: 0,
-    totalPaid: 0
+    totalPaid: 0,
+    tuitionPaid: 0,
+    otherfeePaid: "",
+     month: "",
   });
 
   // Teacher Info
   const [teacherName, setTeacherName] = useState("");
+  const [Scholarship, setScholarship] = useState(false);
+
 
   // ── Load user from localStorage ─────────────────────────────────────────────
   useEffect(() => {
@@ -260,7 +265,7 @@ export default function AdmissionScreen() {
 
 const handleImageChange = (e) => {
   const file = e.target.files[0];
-
+  if (!file) return;
   const reader = new FileReader();
 
   reader.onloadend = () => {
@@ -270,38 +275,53 @@ const handleImageChange = (e) => {
   reader.readAsDataURL(file);
 };
 
-  // Auto-calculate totals
-  useEffect(() => {
-    const totalPaid = 
-      (parseFloat(admissionPayment.admissionPaid) || 0) +
-      (parseFloat(admissionPayment.registrationPaid) || 0) +
-      (parseFloat(admissionPayment.securityPaid) || 0) +
-      (parseFloat(admissionPayment.annualPaid) || 0);
-    
-    const totalDue = 
-      (parseFloat(fee.admissionOneTime) || 0) +
-      (parseFloat(fee.registration) || 0) +
-      (parseFloat(fee.annual) || 0) +
-      (parseFloat(fee.other) || 0);
-    
-    const balance = totalDue - totalPaid;
-    
-    setAdmissionPayment(prev => ({
-      ...prev,
-      totalPaid: totalPaid,
-      totalDue: totalDue,
-      balance: balance
-    }));
-  }, [
-    fee.admissionOneTime, 
-    fee.registration, 
-    fee.annual, 
-    fee.other,
-    admissionPayment.admissionPaid,
-    admissionPayment.registrationPaid,
-    admissionPayment.securityPaid,
-    admissionPayment.annualPaid
-  ]);
+
+useEffect(() => {
+  const totalDue =
+    (parseFloat(fee.tuition) || 0) +
+    (parseFloat(fee.monthly) || 0) +
+    (parseFloat(fee.admissionOneTime) || 0) +
+    (parseFloat(fee.registration) || 0) +
+    (parseFloat(fee.annual) || 0) +
+    (parseFloat(fee.security) || 0) +
+    (parseFloat(fee.previousPending) || 0) +
+    (parseFloat(fee.other) || 0);
+
+  const totalPaid =
+    (parseFloat(admissionPayment.admissionPaid) || 0) +
+    (parseFloat(admissionPayment.registrationPaid) || 0) +
+    (parseFloat(admissionPayment.securityPaid) || 0) +
+    (parseFloat(admissionPayment.annualPaid) || 0) +
+    (parseFloat(admissionPayment.prevPendingPaid) || 0) +
+    (parseFloat(admissionPayment.tuitionPaid) || 0) +
+    (parseFloat(admissionPayment.otherfeePaid) || 0) +
+    (parseFloat(admissionPayment.monthlyPaid) || 0);
+
+  const balance = totalDue - totalPaid;
+
+  setAdmissionPayment((prev) => ({
+    ...prev,
+    totalDue,
+    totalPaid,
+    balance,
+  }));
+}, [
+  fee.tuition,
+  fee.monthly,
+  fee.admissionOneTime,
+  fee.registration,
+  fee.annual,
+  fee.security,
+  fee.previousPending,
+  fee.other,
+  admissionPayment.admissionPaid,
+  admissionPayment.registrationPaid,
+  admissionPayment.securityPaid,
+  admissionPayment.annualPaid,
+  admissionPayment.prevPendingPaid,
+  admissionPayment.tuitionPaid,
+  admissionPayment.otherfeePaid,
+]);
 
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
@@ -312,16 +332,16 @@ const handleImageChange = (e) => {
     
 
       const payload = {
-        // Account Info
         adminId: user?.adminId || adminId,
         headId: user?.id || headId,
         schoolId: user?.schoolId || schoolId,
         schoolName: user?.schoolName || schoolName,
         
-        // Teacher Info
+        
         teacherId: selectedTeacher?.teacherId || selectedTeacher?.id || "",
         teacherName: teacherName || selectedTeacher?.name || selectedTeacher?.teacherName || "",
-        
+          scholarship: Scholarship,
+  percentage: Scholarship ? Number(scholarshipPercent) : 0,
         // Student Basic Info
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -364,13 +384,15 @@ const handleImageChange = (e) => {
         // Fee Structure
         fee: {
           admissionOneTime: parseInt(fee.admissionOneTime) || 0,
+          security :parseInt(fee.security),
+          tuition: parseInt(fee.tuition),
           dueDay: parseInt(fee.dueDay),
           monthly: parseInt(fee.monthly),
-          outstanding: parseInt(fee.outstanding) || 0,
           previousPending: parseInt(fee.previousPending) || 0,
           registration: parseInt(fee.registration) || 0,
           annual: parseInt(fee.annual) || 0,
-          other: parseInt(fee.other) || 0
+          other: parseInt(fee.other) || 0,
+          
         },
         
         // Reminder Settings
@@ -389,13 +411,17 @@ const handleImageChange = (e) => {
           balance: admissionPayment.balance,
           depositDate: admissionPayment.depositDate || null,
           depositStatus: admissionPayment.depositStatus,
-          month: admissionPayment.month || null,
+          monthlyPaid: parseInt(admissionPayment.monthlyPaid) || 0,
+          
           prevPendingPaid: parseInt(admissionPayment.prevPendingPaid) || 0,
           registrationPaid: parseInt(admissionPayment.registrationPaid) || 0,
           remarks: admissionPayment.remarks || "",
           securityPaid: parseInt(admissionPayment.securityPaid) || 0,
           totalDue: admissionPayment.totalDue,
-          totalPaid: admissionPayment.totalPaid
+          totalPaid: admissionPayment.totalPaid,
+             tuitionPaid: parseInt(admissionPayment.tuitionPaid) || 0,
+  otherfeePaid: parseInt(admissionPayment.otherfeePaid) || 0,
+    month: admissionPayment.month || null
         }
       };
 
@@ -443,7 +469,9 @@ const handleImageChange = (e) => {
         previousPending: 0,
         registration: "",
         annual: "",
-        other: ""
+        other: "",
+          security: "",
+  tuition: ""
       });
       
       setReminder({
@@ -495,7 +523,14 @@ const handleImageChange = (e) => {
           
           {/* Teacher Incharge */}
           <div className="border-b pb-4">
-            <h2 className="text-lg font-semibold mb-4">Teacher Assignment</h2>
+            <div  className="flex items-center gap-2">
+
+              <div className="w-3 h-3 rounded-full bg-[rgb(209,37,37)] flex items-center justify-center text-white text-xs">
+  
+</div>
+   <h2 className="text-lg font-semibold ">Teacher Assignment</h2>
+            </div>
+         
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Teacher Incharge *</label>
@@ -533,12 +568,18 @@ const handleImageChange = (e) => {
           {/* Student Basic Info */}
           <div className="border-b pb-4">
             <h2 className="text-lg font-semibold mb-4">Student Information</h2>
+     
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>First Name *</label>
+             
+              <div> 
+               
+ 
+      <label className={labelCls}>  First Name *</label>
+               
+          
                 <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className={inputCls} />
               </div>
-              <div>
+              <div> 
                 <label className={labelCls}>Last Name</label>
                 <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputCls} />
               </div>
@@ -558,10 +599,25 @@ const handleImageChange = (e) => {
                 <label className={labelCls}>Date of Birth</label>
                 <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className={inputCls} />
               </div>
-              <div>
-                <label className={labelCls}>Religion</label>
-                <input type="text" value={religion} onChange={(e) => setReligion(e.target.value)} placeholder="e.g., Muslim, Christian" className={inputCls} />
-              </div>
+           <div>
+  <label className={labelCls}>Religion</label>
+
+  <select
+    value={religion}
+    onChange={(e) => setReligion(e.target.value)}
+    className={inputCls}
+  >
+    <option value="">Select Religion</option>
+    <option value="Islam">Islam</option>
+    <option value="Christianity">Christianity</option>
+    <option value="Hinduism">Hinduism</option>
+    <option value="Buddhism">Buddhism</option>
+    <option value="Sikhism">Sikhism</option>
+    <option value="Judaism">Judaism</option>
+    <option value="Jainism">Jainism</option>
+    <option value="Other">Other</option>
+  </select>
+</div>
               <div>
                 <label className={labelCls}>Student Email *</label>
                 <input type="email" value={studentEmail} onChange={(e) => setStudentEmail(e.target.value)} required className={inputCls} />
@@ -587,8 +643,16 @@ const handleImageChange = (e) => {
           </div>
 
           {/* Parent Info */}
-          <div className="border-b pb-4">
-            <h2 className="text-lg font-semibold mb-4">Parent / Guardian Information</h2>
+          <div className="border-b pb-4 ">
+
+               <div  className="flex items-center gap-2  mb-3">
+
+              <div className="w-3 h-3 rounded-full bg-[rgb(0,0,0)] flex items-center justify-center text-white text-xs">
+  
+</div>
+  <h2 className="text-lg font-semibold">Parent / Guardian Information</h2>
+            </div>
+           
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Full Name *</label>
@@ -649,7 +713,15 @@ const handleImageChange = (e) => {
 
           {/* Academic Info */}
           <div className="border-b pb-4">
-            <h2 className="text-lg font-semibold mb-4">Academic Information</h2>
+
+                <div  className="flex items-center gap-2  mb-3">
+
+              <div className="w-3 h-3 rounded-full bg-[rgb(255,0,191)] flex items-center justify-center text-white text-xs">
+  
+</div>
+             <h2 className="text-lg font-semibold ">Academic Information</h2>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Class *</label>
@@ -714,9 +786,30 @@ const handleImageChange = (e) => {
 
           {/* Fee Structure */}
           <div className="border-b pb-4">
-            <h2 className="text-lg font-semibold mb-4">Fee Structure</h2>
+
+  <div  className="flex items-center gap-2  mb-3">
+
+              <div className="w-3 h-3 rounded-full bg-[rgb(245,167,0)] flex items-center justify-center text-white text-xs">
+  
+</div>
+           <h2 className="text-lg font-semibold ">Fee Structure</h2>
+            </div>
+
+          
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+             <div>
+                <label className={labelCls}>Tuition Fee *</label>
+               <input
+  type="number"
+  value={fee.tuition || ""}
+  onChange={(e) =>
+    setFee({ ...fee, tuition: e.target.value })
+  }
+  required
+  className={inputCls}
+/>
+              </div>
+              <div> 
                 <label className={labelCls}>Monthly Fee *</label>
                 <input type="number" value={fee.monthly} onChange={(e) => setFee({...fee, monthly: e.target.value})} required className={inputCls} />
               </div>
@@ -732,39 +825,91 @@ const handleImageChange = (e) => {
                 <label className={labelCls}>Annual Fee</label>
                 <input type="number" value={fee.annual} onChange={(e) => setFee({...fee, annual: e.target.value})} className={inputCls} />
               </div>
-              <div>
-                <label className={labelCls}>Other Fees</label>
-                <input type="number" value={fee.other} onChange={(e) => setFee({...fee, other: e.target.value})} className={inputCls} />
+
+                 <div>
+                <label className={labelCls}>Security Fee</label>
+                <input type="number" value={fee.security} onChange={(e) => setFee({...fee, security: e.target.value})} className={inputCls} />
               </div>
+           
               <div>
                 <label className={labelCls}>Previous Pending</label>
                 <input type="number" value={fee.previousPending} onChange={(e) => setFee({...fee, previousPending: e.target.value})} className={inputCls} />
               </div>
-              <div>
-                <label className={labelCls}>Outstanding Balance</label>
-                <input type="number" value={fee.outstanding} onChange={(e) => setFee({...fee, outstanding: e.target.value})} className={inputCls} />
+                 <div>
+                <label className={labelCls}>Other Fees (Optional)</label>
+                <input type="number" value={fee.other} onChange={(e) => setFee({...fee, other: e.target.value})} className={inputCls} />
               </div>
-              <div>
-                <label className={labelCls}>Due Day *</label>
-                <select value={fee.dueDay} onChange={(e) => setFee({...fee, dueDay: e.target.value})} className={inputCls}>
-                  {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>Day {d}</option>)}
-                </select>
-              </div>
+            
+            
             </div>
           </div>
 
           {/* Reminder Settings */}
           <div className="border-b pb-4">
-            <h2 className="text-lg font-semibold mb-4">Payment Reminder Settings</h2>
+
+            
+          
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+
+              
+              <div className="flex flex-col gap-4">
+<div className="space-y-3">
+  <label className="flex items-center gap-3 cursor-pointer">
+    <span className="text-sm font-medium">Scholarship</span>
+
+    <button
+      type="button"
+      onClick={() => {
+        setScholarship(!Scholarship);
+
+        if (Scholarship) {
+          setScholarshipPercent("");
+        }
+      }}
+      className={`relative w-8 h-4 rounded-full transition ${
+        Scholarship ? "bg-green-500" : "bg-gray-300"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition ${
+        Scholarship ? "left-4" : "left-0.5"
+        }`}
+      />
+    </button>
+  </label>
+
+  {Scholarship && (
+    <select
+      value={scholarshipPercent}
+      onChange={(e) => setScholarshipPercent(e.target.value)}
+      className={inputCls}
+    >
+      <option value="">Select Scholarship</option>
+      <option value="25">25%</option>
+      <option value="50">50%</option>
+      <option value="75">75%</option>
+      <option value="100">100%</option>
+    </select>
+  )}
+</div>
+
+
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={reminder.enabled} onChange={(e) => setReminder({...reminder, enabled: e.target.checked})} />
                   Enable Auto Reminder
-                </label>
+                </label>  
+
+
+
               </div>
               {reminder.enabled && (
                 <>
+                  <div>
+                <label className={labelCls}>Due Day *</label>
+                <select value={fee.dueDay} onChange={(e) => setFee({...fee, dueDay: e.target.value})} className={inputCls}>
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>Day {d}</option>)}
+                </select>
+              </div>
                   <div>
                     <label className={labelCls}>Days Before Due</label>
                     <input type="number" value={reminder.daysBefore} onChange={(e) => setReminder({...reminder, daysBefore: e.target.value})} className={inputCls} />
@@ -778,18 +923,8 @@ const handleImageChange = (e) => {
                       <option>All</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={reminder.security} onChange={(e) => setReminder({...reminder, security: e.target.checked})} />
-                      Security Fee Reminder
-                    </label>
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={reminder.tuition} onChange={(e) => setReminder({...reminder, tuition: e.target.checked})} />
-                      Tuition Fee Reminder
-                    </label>
-                  </div>
+                 
+                
                 </>
               )}
             </div>
@@ -797,7 +932,16 @@ const handleImageChange = (e) => {
 
           {/* Admission Payment */}
           <div className="border-b pb-4">
-            <h2 className="text-lg font-semibold mb-4">Admission Payment Details</h2>
+
+  <div  className="flex items-center gap-2  mb-3">
+
+              <div className="w-3 h-3 rounded-full bg-[rgb(120,12,221)] flex items-center justify-center text-white text-xs">
+  
+</div>
+          <h2 className="text-lg font-semibold ">Admission Payment Details</h2>
+            </div>
+
+         
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Admission Fee Paid</label>
@@ -811,6 +955,11 @@ const handleImageChange = (e) => {
                 <label className={labelCls}>Security Fee Paid</label>
                 <input type="number" value={admissionPayment.securityPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, securityPaid: e.target.value})} className={inputCls} />
               </div>
+
+                   <div>
+                <label className={labelCls}>Monthly Fee Paid</label>
+                <input type="number" value={admissionPayment.monthlyPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, monthlyPaid: e.target.value})} className={inputCls} />
+              </div>
               <div>
                 <label className={labelCls}>Annual Fee Paid</label>
                 <input type="number" value={admissionPayment.annualPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, annualPaid: e.target.value})} className={inputCls} />
@@ -819,6 +968,17 @@ const handleImageChange = (e) => {
                 <label className={labelCls}>Previous Pending Paid</label>
                 <input type="number" value={admissionPayment.prevPendingPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, prevPendingPaid: e.target.value})} className={inputCls} />
               </div>
+
+              <div>
+                <label className={labelCls}>Tuition Fee Paid</label>
+                <input type="number" value={admissionPayment.tuitionPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, tuitionPaid: e.target.value})} className={inputCls} />
+              </div>
+
+                 <div>
+                <label className={labelCls}>Other Fee Paid</label>
+                <input type="number" value={admissionPayment.otherfeePaid} onChange={(e) => setAdmissionPayment({...admissionPayment, otherfeePaid: e.target.value})} className={inputCls} />
+              </div>
+
               <div>
                 <label className={labelCls}>Deposit Date</label>
                 <input type="date" value={admissionPayment.depositDate} onChange={(e) => setAdmissionPayment({...admissionPayment, depositDate: e.target.value})} className={inputCls} />
@@ -833,8 +993,14 @@ const handleImageChange = (e) => {
               </div>
               <div>
                 <label className={labelCls}>Month</label>
-                <input type="text" value={admissionPayment.month} onChange={(e) => setAdmissionPayment({...admissionPayment, month: e.target.value})} placeholder="e.g., January" className={inputCls} />
+                <input type="text" value={admissionPayment.month} onChange={(e) => 
+                  setAdmissionPayment({...admissionPayment, month: e.target.value})} placeholder="e.g., January" className={inputCls} />
               </div>
+
+
+
+
+
               <div className="md:col-span-2">
                 <label className={labelCls}>Remarks</label>
                 <textarea value={admissionPayment.remarks} onChange={(e) => setAdmissionPayment({...admissionPayment, remarks: e.target.value})} rows={2} className={inputCls} />
