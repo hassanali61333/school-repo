@@ -364,6 +364,8 @@ if (!fatherMobile?.trim()) {
       schoolName: schoolName || "",
       teacherId,
       teacherName: teacherName || "",
+        scholarship: scholarship || false,
+  percentage: Number(percentage) || 0,
       role: role || "student",
       status: status || "active",
       firstName: firstName.trim(),
@@ -576,7 +578,9 @@ export async function PUT(request) {
       section: selectedSection,
       status,
       teacherName,
-      subjects: selectedSubjects
+      subjects: selectedSubjects,
+      scholarship,
+      percentage,
     } = body;
 
     // ── Validation ────────────────────────────────────────────────────────────
@@ -771,7 +775,7 @@ export async function PUT(request) {
       // Teacher info
       teacherId: teacherId || existingData.teacherId,
       teacherName: teacherName || existingData.teacherName || "",
-      
+        
       // Class info
       classId: classId,
       className: className || classId,

@@ -338,14 +338,9 @@ if(religion == ""){
   return;
 }
 
-if(!depositDate){
-  toast.error("Please select deposit date");
-  return;
-}
 
-if(!month){
-  toast.error("Please select month and year");
-  return;
+if(!imageFile && imageFile == null){
+toast.error("Please upload profile photo");
 }
 
       const isFullScholarship =
@@ -425,6 +420,7 @@ if (!isFullScholarship) {
     return;
   }
 }
+
 
       const payload = {
         adminId: user?.adminId || adminId,
@@ -590,7 +586,7 @@ if (!isFullScholarship) {
         securityPaid: 0,
         totalDue: 0,
         totalPaid: 0,
-        tuition: 0,
+        tuitionPaid: 0,
       });
       
     } catch (err) {

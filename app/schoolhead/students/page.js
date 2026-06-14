@@ -901,12 +901,7 @@ export default function StudentsPage() {
               School: {schoolName || "Loading..."} | ID: {schoolId}
             </p>
           </div>
-          <button 
-            onClick={openAdd}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
-          >
-            + Add New Student
-          </button>
+    
         </div>
 
         {/* Search Bar */}
