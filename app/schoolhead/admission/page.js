@@ -135,15 +135,15 @@ export default function AdmissionScreen() {
 
   // Fee Structure
   const [fee, setFee] = useState({
-    admissionOneTime: "",
-    monthly: "",
+    admissionOneTime: "0",
+    monthly: "0",
     dueDay: "5",
     previousPending: '0',
-    registration: "",
-    annual: "",
-    other: "",
-    security: "",
-    tuition: ""
+    registration: "0",
+    annual: "0",
+    other: "0",
+    security: "0",
+    tuition: "0"
   });
 
   // Reminder Settings
@@ -160,7 +160,7 @@ export default function AdmissionScreen() {
     balance: 0,
     depositDate: "",
     depositStatus: "pending",
-    monthlyPaid: "",
+    monthlyPaid: 0,
     prevPendingPaid: 0,
     registrationPaid: "",
     remarks: "",
@@ -278,24 +278,24 @@ const handleImageChange = (e) => {
 
 useEffect(() => {
   const totalDue =
-    (parseFloat(fee.tuition) || 0) +
-    (parseFloat(fee.monthly) || 0) +
-    (parseFloat(fee.admissionOneTime) || 0) +
-    (parseFloat(fee.registration) || 0) +
-    (parseFloat(fee.annual) || 0) +
-    (parseFloat(fee.security) || 0) +
-    (parseFloat(fee.previousPending) || 0) +
-    (parseFloat(fee.other) || 0);
+    Number(fee.tuition || 0) +
+    Number(fee.monthly || 0) +
+    Number(fee.admissionOneTime || 0) +
+    Number(fee.registration || 0) +
+    Number(fee.annual || 0) +
+    Number(fee.security || 0) +
+    Number(fee.previousPending || 0) +
+    Number(fee.other || 0);
 
   const totalPaid =
-    (parseFloat(admissionPayment.admissionPaid) || 0) +
-    (parseFloat(admissionPayment.registrationPaid) || 0) +
-    (parseFloat(admissionPayment.securityPaid) || 0) +
-    (parseFloat(admissionPayment.annualPaid) || 0) +
-    (parseFloat(admissionPayment.prevPendingPaid) || 0) +
-    (parseFloat(admissionPayment.tuitionPaid) || 0) +
-    (parseFloat(admissionPayment.otherfeePaid) || 0) +
-    (parseFloat(admissionPayment.monthlyPaid) || 0);
+    Number(admissionPayment.admissionPaid || 0) +
+    Number(admissionPayment.registrationPaid || 0) +
+    Number(admissionPayment.securityPaid || 0) +
+    Number(admissionPayment.annualPaid || 0) +
+    Number(admissionPayment.prevPendingPaid || 0) +
+    Number(admissionPayment.tuitionPaid || 0) +
+    Number(admissionPayment.otherfeePaid || 0) +
+    Number(admissionPayment.monthlyPaid || 0);
 
   const balance = totalDue - totalPaid;
 
@@ -314,6 +314,8 @@ useEffect(() => {
   fee.security,
   fee.previousPending,
   fee.other,
+
+  // only these (paid inputs)
   admissionPayment.admissionPaid,
   admissionPayment.registrationPaid,
   admissionPayment.securityPaid,
@@ -321,6 +323,7 @@ useEffect(() => {
   admissionPayment.prevPendingPaid,
   admissionPayment.tuitionPaid,
   admissionPayment.otherfeePaid,
+  admissionPayment.monthlyPaid,
 ]);
 
   // ── Submit ──────────────────────────────────────────────────────────────────
@@ -330,6 +333,98 @@ useEffect(() => {
 
     try {
     
+if(religion == ""){
+  toast.error("Please select religion");
+  return;
+}
+
+if(!depositDate){
+  toast.error("Please select deposit date");
+  return;
+}
+
+if(!month){
+  toast.error("Please select month and year");
+  return;
+}
+
+      const isFullScholarship =
+  Scholarship && Number(scholarshipPercent) === 100;
+
+if (!isFullScholarship) {
+
+  if (!fee.tuition) {
+    toast.error("Tuition Fee is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!admissionPayment.tuitionPaid) {
+    toast.error("Tuition Fee Paid is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!fee.monthly) {
+    toast.error("Monthly Fee is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!admissionPayment.monthlyPaid) {
+    toast.error("Monthly Fee Paid is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!fee.admissionOneTime) {
+    toast.error("Admission Fee is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!admissionPayment.admissionPaid) {
+    toast.error("Admission Fee Paid is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!fee.registration) {
+    toast.error("Registration Fee is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!admissionPayment.registrationPaid) {
+    toast.error("Registration Fee Paid is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!fee.annual) {
+    toast.error("Annual Fee is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!admissionPayment.annualPaid) {
+    toast.error("Annual Fee Paid is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!fee.security) {
+    toast.error("Security Fee is required");
+    setLoading(false);
+    return;
+  }
+
+  if (!admissionPayment.securityPaid) {
+    toast.error("Security Fee Paid is required");
+    setLoading(false);
+    return;
+  }
+}
 
       const payload = {
         adminId: user?.adminId || adminId,
@@ -483,18 +578,19 @@ useEffect(() => {
       });
       
       setAdmissionPayment({
-        admissionPaid: "",
-        annualPaid: "",
+        admissionPaid: 0,
+        annualPaid: 0,
         balance: 0,
         depositDate: "",
         depositStatus: "pending",
         month: "",
         prevPendingPaid: 0,
-        registrationPaid: "",
+        registrationPaid: 0,
         remarks: "",
-        securityPaid: "",
+        securityPaid: 0,
         totalDue: 0,
-        totalPaid: 0
+        totalPaid: 0,
+        tuition: 0,
       });
       
     } catch (err) {
@@ -509,6 +605,10 @@ useEffect(() => {
   const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm";
   const labelCls = "block text-sm font-medium text-gray-700 mb-1";
 
+
+
+
+  
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <ToastContainer position="top-right" autoClose={5000} theme="light" />
@@ -694,10 +794,10 @@ useEffect(() => {
             </div>
 
             {/* Mother Info */}
-            <h3 className="text-md font-semibold mt-4 mb-2">Mother's Information</h3>
+            <h3 className="text-md font-semibold mt-4 mb-2">Mother's Information <span className="text-[rgb(90,88,74)]">(optional)</span> </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className={labelCls}>Mother Name</label>
+                <label className={labelCls}>Mother Name </label>
                 <input type="text" value={parent.mother.name} onChange={(e) => setParent({...parent, mother: {...parent.mother, name: e.target.value}})} className={inputCls} />
               </div>
               <div>
@@ -930,6 +1030,58 @@ useEffect(() => {
             </div>
           </div>
 
+          {
+            Scholarship && 
+            <div className="border-b pb-4">
+  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border rounded-xl p-4 md:p-6 shadow-sm">
+    <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4">
+      Payment Deductions
+    </h3>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
+      {/* Total Due */}
+      <div className="bg-white rounded-lg p-4 border">
+        <p className="text-sm text-gray-500">Total Due</p>
+        <p className="text-2xl font-bold text-red-600">
+          Rs. {admissionPayment.totalDue || 0}
+        </p>
+      </div>
+
+      {/* After Scholarship */}
+      <div className="bg-white rounded-lg p-4 border">
+        <p className="text-sm text-gray-500">
+         Due After {scholarshipPercent || 0}% Scholarship
+        </p>
+        <p className="text-2xl font-bold text-green-600">
+       
+   {(
+  Number(admissionPayment.totalDue || 0) -
+  (Number(admissionPayment.totalDue || 0) * Number(scholarshipPercent || 0)) / 100
+)}
+   
+        </p>
+      </div>
+    </div>
+
+    {/* Scholarship Amount */}
+    <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between bg-purple-100 rounded-lg p-3">
+      <span className="text-sm font-medium text-purple-700">
+        Scholarship Deduction
+      </span>
+
+      <span className="text-lg font-bold text-purple-800">
+        - Rs.{" "}
+       {
+                (Number(admissionPayment.totalDue || 0) * Number(scholarshipPercent || 0)) / 100
+       }
+      </span>
+    </div>
+  </div> 
+</div>
+          }
+
+
           {/* Admission Payment */}
           <div className="border-b pb-4">
 
@@ -943,39 +1095,133 @@ useEffect(() => {
 
          
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Admission Fee Paid</label>
-                <input type="number" value={admissionPayment.admissionPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, admissionPaid: e.target.value})} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Registration Fee Paid</label>
-                <input type="number" value={admissionPayment.registrationPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, registrationPaid: e.target.value})} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Security Fee Paid</label>
-                <input type="number" value={admissionPayment.securityPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, securityPaid: e.target.value})} className={inputCls} />
-              </div>
+   <div>
+    <div>
+<label className={labelCls}>Tuition Fee Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.tuition || 0) -
+         (Number(fee.tuition || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.tuition || 0)
+  }
+</p>
 
-                   <div>
-                <label className={labelCls}>Monthly Fee Paid</label>
-                <input type="number" value={admissionPayment.monthlyPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, monthlyPaid: e.target.value})} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Annual Fee Paid</label>
-                <input type="number" value={admissionPayment.annualPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, annualPaid: e.target.value})} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Previous Pending Paid</label>
-                <input type="number" value={admissionPayment.prevPendingPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, prevPendingPaid: e.target.value})} className={inputCls} />
-              </div>
-
-              <div>
-                <label className={labelCls}>Tuition Fee Paid</label>
+    </div>
+                
+                
                 <input type="number" value={admissionPayment.tuitionPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, tuitionPaid: e.target.value})} className={inputCls} />
               </div>
 
+                     <div>
+                      <div>
+                <label className={labelCls}>Monthly Fee Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.monthly || 0) -
+         (Number(fee.monthly || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.monthly || 0)
+  }
+</p>
+
+                      </div>
+                <input type="number" value={admissionPayment.monthlyPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, monthlyPaid: e.target.value})} className={inputCls} />
+              </div>
+
+              <div>
+                <div>
+                <label className={labelCls}>Admission Fee Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.admissionOneTime || 0) -
+         (Number(fee.admissionOneTime || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.admissionOneTime || 0)
+  }
+</p>
+
+                </div>
+                <input type="number" value={admissionPayment.admissionPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, admissionPaid: e.target.value})} className={inputCls} />
+              </div>
+              <div>
+                <div>
+                <label className={labelCls}>Registration Fee Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.registration || 0) -
+         (Number(fee.registration || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.registration || 0)
+  }
+</p>
+
+                </div>
+                <input type="number" value={admissionPayment.registrationPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, registrationPaid: e.target.value})} className={inputCls} />
+              </div>
+
+               <div>
+
+
+                <div>
+                <label className={labelCls}>Annual Fee Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.annual || 0) -
+         (Number(fee.annual || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.annual || 0)
+  }
+  </p>
+                </div>
+                <input type="number" value={admissionPayment.annualPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, annualPaid: e.target.value})} className={inputCls} />
+              </div>
+              <div>
+                <div>
+                <label className={labelCls}>Security Fee Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.security || 0) -
+         (Number(fee.security || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.security || 0)
+  }
+  </p>
+                </div>
+                <input type="number" value={admissionPayment.securityPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, securityPaid: e.target.value})} className={inputCls} />
+              </div>
+
+            
+             
+              <div>
+                <div>
+                <label className={labelCls}>Previous Pending Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.previousPending || 0) -
+         (Number(fee.previousPending || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.previousPending || 0)
+  }
+</p>
+                </div>
+                <input type="number" value={admissionPayment.prevPendingPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, prevPendingPaid: e.target.value})} className={inputCls} />
+              </div>
+
+           
+
                  <div>
+                  <div>
                 <label className={labelCls}>Other Fee Paid</label>
+<p className="text-[rgb(255,5,5)] text-[12px] font-bold">
+  Due : {
+    Scholarship
+      ? (Number(fee.other || 0) -
+         (Number(fee.other || 0) * Number(scholarshipPercent || 0)) / 100)
+      : Number(fee.other || 0)
+  }
+</p>
+                  </div>
                 <input type="number" value={admissionPayment.otherfeePaid} onChange={(e) => setAdmissionPayment({...admissionPayment, otherfeePaid: e.target.value})} className={inputCls} />
               </div>
 
@@ -992,9 +1238,9 @@ useEffect(() => {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Month</label>
+                <label className={labelCls}>Month and year</label>
                 <input type="text" value={admissionPayment.month} onChange={(e) => 
-                  setAdmissionPayment({...admissionPayment, month: e.target.value})} placeholder="e.g., January" className={inputCls} />
+                  setAdmissionPayment({...admissionPayment, month: e.target.value})} placeholder=" eg :January  2026" className={inputCls} />
               </div>
 
 
@@ -1011,9 +1257,32 @@ useEffect(() => {
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
               <h3 className="font-semibold mb-2">Payment Summary</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div><span className="text-gray-600">Total Due:</span> <span className="font-bold">Rs. {admissionPayment.totalDue}</span></div>
+                <div>
+  <span className="text-gray-600">Total Due:</span>
+  <span className="font-bold">
+    Rs. {
+      Scholarship
+        ? admissionPayment.totalDue -
+          ((Number(admissionPayment.totalDue || 0) * Number(scholarshipPercent || 0)) / 100)
+        : admissionPayment.totalDue
+    }
+  </span>
+</div>
                 <div><span className="text-gray-600">Total Paid:</span> <span className="font-bold text-green-600">Rs. {admissionPayment.totalPaid}</span></div>
-                <div><span className="text-gray-600">Balance:</span> <span className={`font-bold ${admissionPayment.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>Rs. {admissionPayment.balance}</span></div>
+              <div>
+  <span className="text-gray-600">Balance:</span>
+  <span
+    className={`font-bold ${
+      admissionPayment.balance > 0 ? "text-red-600" : "text-green-600"
+    }`}
+  >
+    Rs. {
+      admissionPayment.totalDue -
+          ((Number(admissionPayment.totalDue || 0) * Number(scholarshipPercent || 0)) / 100) - admissionPayment.totalPaid
+     
+    }
+  </span>
+</div>
               </div>
             </div>
           </div>

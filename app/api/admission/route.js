@@ -119,7 +119,17 @@ console.log("Received admission data:", body);
 
     if (!firstName?.trim()) errors.push("First name is required");
 
-   
+  if (!fatherName?.trim()) {
+  errors.push("Father name is required");
+}
+
+if (!fatherCnic?.trim()) {
+  errors.push("Father CNIC is required");
+}
+
+if (!fatherMobile?.trim()) {
+  errors.push("Father mobile is required");
+}
     const rd = onlyDigits(rollNo);
     if (!rd) {
       errors.push("Roll number is required");
