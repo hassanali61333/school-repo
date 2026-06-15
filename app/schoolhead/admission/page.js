@@ -341,6 +341,7 @@ if(religion == ""){
 
 if(!imageFile && imageFile == null){
 toast.error("Please upload profile photo");
+return;
 }
 
       const isFullScholarship =
@@ -574,19 +575,21 @@ if (!isFullScholarship) {
       });
       
       setAdmissionPayment({
-        admissionPaid: 0,
-        annualPaid: 0,
-        balance: 0,
-        depositDate: "",
-        depositStatus: "pending",
-        month: "",
-        prevPendingPaid: 0,
-        registrationPaid: 0,
-        remarks: "",
-        securityPaid: 0,
-        totalDue: 0,
-        totalPaid: 0,
-        tuitionPaid: 0,
+     admissionPaid: "",
+    annualPaid: "",
+    balance: 0,
+    depositDate: "",
+    depositStatus: "",
+    monthlyPaid: 0,
+    prevPendingPaid: 0,
+    registrationPaid: "",
+    remarks: "",
+    securityPaid: "",
+    totalDue: 0,
+    totalPaid: 0,
+    tuitionPaid: 0,
+    otherfeePaid: "",
+     month: "",
       });
       
     } catch (err) {
@@ -1122,7 +1125,7 @@ if (!isFullScholarship) {
 </p>
 
                       </div>
-                <input type="number" value={admissionPayment.monthlyPaid} onChange={(e) => setAdmissionPayment({...admissionPayment, monthlyPaid: e.target.value})} className={inputCls} />
+                <input type="number"  value={admissionPayment.monthlyPaid ?? ""} onChange={(e) => setAdmissionPayment({...admissionPayment, monthlyPaid: e.target.value})} className={inputCls} />
               </div>
 
               <div>

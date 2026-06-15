@@ -256,42 +256,48 @@ if (!fatherMobile?.trim()) {
     }
 
     // ── Parent email: check if parent already exists in this school ───────────
-    let resolvedParentPassword = parentPassword || null;
+   // ── Parent email: check if parent already exists in this school ───────────
+let resolvedParentPassword = null;
 
-    const existingParentSnap = await db
-      .collection("students")
-      .where("parent.email", "==", normalizedParentEmail)
-      .where("schoolId", "==", schoolId)
-      .limit(1)
-      .get();
+const existingParentSnap = await db
+  .collection("students")
+  .where("parent.email", "==", normalizedParentEmail)
+  .where("schoolId", "==", schoolId)
+  .limit(1)
+  .get();
 
-    const parentExistsInSchool = !existingParentSnap.empty;
+const parentExistsInSchool = !existingParentSnap.empty;
 
-    if (parentExistsInSchool) {
-      if (!resolvedParentPassword) {
-        const existingParentData = existingParentSnap.docs[0].data();
-        resolvedParentPassword = existingParentData?.parent?.password || null;
-      }
-    } else {
-      if (!resolvedParentPassword) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "New parent account requires a password of at least 8 characters",
-          },
-          { status: 400 }
-        );
-      }
-      if (resolvedParentPassword.length < 8) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Parent password must be at least 8 characters",
-          },
-          { status: 400 }
-        );
-      }
-    }
+if (parentExistsInSchool) {
+  // Existing parent => always use old password
+  const existingParentData = existingParentSnap.docs[0].data();
+
+  resolvedParentPassword =
+    existingParentData?.parent?.password || null;
+} else {
+  // New parent
+  resolvedParentPassword = parentPassword;
+
+  if (!resolvedParentPassword) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Parent password is required",
+      },
+      { status: 400 }
+    );
+  }
+
+  if (resolvedParentPassword.length < 8) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Parent password must be at least 8 characters",
+      },
+      { status: 400 }
+    );
+  }
+}
 
     // ── Build Firestore document ──────────────────────────────────────────────
     const newStudentId = generateStudentId();
