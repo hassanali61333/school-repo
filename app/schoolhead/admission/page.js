@@ -540,7 +540,7 @@ if (!isFullScholarship) {
       setStatus("active");
       setSelectedTeacher(null);
       setTeacherName("");
-      
+     
       setParent({
         name: "", phone: "", email: "", password: "", address: "",
         father: { name: "", cnic: "", mobile: "" },

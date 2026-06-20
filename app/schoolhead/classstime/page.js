@@ -19,7 +19,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import '@fortawesome/fontawesome-free/css/all.min.css'; // Add Font Awesome
 import { data } from 'autoprefixer';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export default function ClassTimePage() {
@@ -32,7 +32,7 @@ export default function ClassTimePage() {
   const [schoolId, setSchoolId] = useState('');
   const [classValue, setClassValue] = useState('');
   const [section, setSection] = useState('');
-  const [activeDay, setActiveDay] = useState('Monday');
+  const [activeDay, setActiveDay] = useState('Mon');
 
   // Data states
   const [timetable, setTimetable] = useState([]);
@@ -46,7 +46,7 @@ export default function ClassTimePage() {
   const [editingSlot, setEditingSlot] = useState(null);
   
   // Individual form fields for class time
-  const [formDay, setFormDay] = useState('Monday');
+  const [formDay, setFormDay] = useState('Mon');
   const [formPeriod, setFormPeriod] = useState(1);
   const [formTeacherId, setFormTeacherId] = useState('');
   const [formTeacherName, setFormTeacherName] = useState('');
@@ -206,7 +206,7 @@ export default function ClassTimePage() {
 
   // ========== RESET CLASS TIME FORM ==========
   const resetClassTimeForm = () => {
-    setFormDay('Monday');
+    setFormDay('Mon');
     setFormPeriod(1);
     setFormTeacherId('');
     setFormTeacherName('');

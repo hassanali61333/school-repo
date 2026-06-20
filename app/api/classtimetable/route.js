@@ -3,10 +3,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebaseAdmin';
 
-/**
- * GET /api/timetable?schoolId=xxx&class=5&section=A
- * Returns all slots for a class+section.
- */
+//=======================================get slots api================================================
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -48,10 +45,7 @@ export async function GET(request) {
   }
 }
 
-/**
- * POST /api/timetable
- * Create a new timetable slot (checks for duplicates)
- */
+//======================================================== create slot============================
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -158,7 +152,7 @@ export async function PUT(request) {
       endTime,
     } = body;
 
-    // Determine the slot ID - either from slotId or from individual fields
+    
     let finalSlotId = slotId;
     if (!finalSlotId && schoolId && cls && section && day && period != null) {
       finalSlotId = `${schoolId}_${cls}_${section}_${day}_${period}`;

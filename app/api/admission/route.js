@@ -269,31 +269,45 @@ const existingParentSnap = await db
 const parentExistsInSchool = !existingParentSnap.empty;
 
 if (parentExistsInSchool) {
-  // Existing parent => always use old password
   const existingParentData = existingParentSnap.docs[0].data();
 
-  resolvedParentPassword =
-    existingParentData?.parent?.password || null;
+  // ✅ If a new password is provided, use it (so login uses the new one)
+  // Otherwise fall back to the existing stored password
+  if (parentPassword && parentPassword.length >= 8) {
+    resolvedParentPassword = parentPassword;
+
+    // Update password in ALL existing student docs for this parent
+    const allParentSnap = await db
+      .collection("students")
+      .where("parent.email", "==", normalizedParentEmail)
+      .where("schoolId", "==", schoolId)
+      .get();
+
+    const batch = db.batch();
+    allParentSnap.docs.forEach((doc) => {
+      batch.update(doc.ref, { "parent.password": parentPassword });
+    });
+    await batch.commit();
+
+  } else {
+    // No new password provided — keep the old one
+    resolvedParentPassword = existingParentData?.parent?.password || null;
+  }
+
 } else {
-  // New parent
+  // New parent — password is required
   resolvedParentPassword = parentPassword;
 
   if (!resolvedParentPassword) {
     return NextResponse.json(
-      {
-        success: false,
-        message: "Parent password is required",
-      },
+      { success: false, message: "Parent password is required" },
       { status: 400 }
     );
   }
 
   if (resolvedParentPassword.length < 8) {
     return NextResponse.json(
-      {
-        success: false,
-        message: "Parent password must be at least 8 characters",
-      },
+      { success: false, message: "Parent password must be at least 8 characters" },
       { status: 400 }
     );
   }
