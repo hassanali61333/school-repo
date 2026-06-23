@@ -97,6 +97,29 @@ export async function POST(request) {
         { status: 409 }
       );
     }
+const teacherSlots = await db
+  .collection("TimetableSlot")
+  .where("schoolId", "==", String(schoolId))
+  .where("teacherId", "==", String(teacherId))
+  .where("day", "==", day)
+  .get();
+
+  for (const doc of teacherSlots.docs) {
+  const slot = doc.data();
+
+  if (
+    startTime < slot.endTime &&
+    endTime > slot.startTime
+  ) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: `${teacherName} is already busy in Class ${slot.class}-${slot.section}`
+      },
+      { status: 409 }
+    );
+  }
+}
 
     // Create new slot if it doesn't exist
     await db.collection('TimetableSlot').doc(slotId).set({

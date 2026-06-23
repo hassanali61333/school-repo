@@ -80,6 +80,7 @@ export default function ClassTimePage() {
   }, [dispatch]);
   
 
+
   // Show notification using toast
   const showNotification = (message, type = 'success') => {
     switch(type) {
@@ -465,7 +466,7 @@ export default function ClassTimePage() {
             <div className="flex justify-center items-center py-20 text-gray-500">
               <div className="text-center">
                 <i className="fas fa-school text-4xl mb-3 opacity-50"></i>
-                <p>Enter School ID, Class, and Section to view timetable</p>
+                <p>Enter Class, and Section to view timetable</p>
               </div>
             </div>
           ) : (
@@ -647,7 +648,12 @@ export default function ClassTimePage() {
     required
   />
 </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-3 justify-center items-center">
+             <div className="text-red-500 animate-pulse font-semibold">
+  Time must be between school working hours
+</div>
+          
+                <div className='wrap gap-4 flex justify-center items-center w-full md:flex-row flex-col'>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
                   <input
@@ -667,6 +673,7 @@ export default function ClassTimePage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                     required
                   />
+                </div>
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
