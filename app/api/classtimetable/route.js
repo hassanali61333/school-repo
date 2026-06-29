@@ -153,10 +153,7 @@ const teacherSlots = await db
   }
 }
 
-/**
- * PUT /api/timetable
- * Update an existing timetable slot
- */
+/** PUT /api/timetableUpdate an existing timetable slot*/
 export async function PUT(request) {
   try {
     const body = await request.json();

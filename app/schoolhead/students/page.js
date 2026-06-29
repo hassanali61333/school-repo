@@ -235,7 +235,7 @@ export default function StudentsPage() {
       }
     }
   }, [dispatch]);
-
+console.log("Admin data from Redux");
   useEffect(() => {
     if (admin) {
       if (admin.schoolId) setSchoolId(admin.schoolId);

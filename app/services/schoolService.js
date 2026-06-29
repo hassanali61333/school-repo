@@ -172,7 +172,7 @@ export const getStudents = (schoolId) => {
 
 export const updateStudent = (data) => {
   return api.put(`/admission?studentId=${data.studentId}`, data);
-};
+};  
 
 // DELETE - Delete student (FIXED)
 export const deleteStudent = (studentId) => {

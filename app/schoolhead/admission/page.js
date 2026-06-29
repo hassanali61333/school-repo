@@ -126,6 +126,8 @@ export default function AdmissionScreen() {
 
   // Academic
   const [classes, setClasses] = useState(INITIAL_CLASSES);
+  const [newClass, setNewClass] = useState("");
+  const [showClassInput, setShowClassInput] = useState(false);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
@@ -821,22 +823,90 @@ if (!isFullScholarship) {
              <h2 className="text-lg font-semibold ">Academic Information</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Class *</label>
-                <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} required className={inputCls}>
-                  <option value="">Select Class</option>
-                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Section *</label>
-                <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} required className={inputCls}>
-                  <option value="">Select Section</option>
-                  {DEFAULT_SECTIONS.map((s) => <option key={s} value={s}>Section {s}</option>)}
-                </select>
-              </div>
-            </div>
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+  {/* Class */}
+  <div>
+    <label className={labelCls}>Class *</label>
+
+    <select
+      value={selectedClass}
+      onChange={(e) => {
+        if (e.target.value === "add_new") {
+          setShowClassInput(true);
+        } else {
+          setShowClassInput(false);
+          setSelectedClass(e.target.value);
+          handleClassChange(e.target.value);
+        }
+      }}
+      className={inputCls}
+    >
+      <option value="">Select Class</option>
+
+      {classes.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.name}
+        </option>
+      ))}
+
+      <option value="add_new">➕ Add New Class</option>
+    </select>
+
+    {showClassInput && (
+      <div className="mt-2 flex gap-2">
+        <input
+          type="text"
+          placeholder="Enter Class Name"
+          value={newClass}
+          onChange={(e) => setNewClass(e.target.value)}
+          className={`${inputCls} flex-1`}
+        />
+
+        <button
+          type="button"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          onClick={() => {
+            if (!newClass.trim()) return;
+
+            const classObj = {
+              id: newClass.toLowerCase().replace(/\s+/g, "_"),
+              name: newClass,
+            };
+
+            setClasses((prev) => [...prev, classObj]);
+            setSelectedClass(classObj.id);
+            setNewClass("");
+            setShowClassInput(false);
+          }}
+        >
+          Add
+        </button>
+      </div>
+    )}
+  </div>
+
+  {/* Section */}
+  <div>
+    <label className={labelCls}>Section *</label>
+
+    <select
+      value={selectedSection}
+      onChange={(e) => setSelectedSection(e.target.value)}
+      required
+      className={inputCls}
+    >
+      <option value="">Select Section</option>
+
+      {DEFAULT_SECTIONS.map((s) => (
+        <option key={s} value={s}>
+          Section {s}
+        </option>
+      ))}
+    </select>
+  </div>
+
+</div>
 
             {isHighClassSelected && (
               <div className="mt-4">

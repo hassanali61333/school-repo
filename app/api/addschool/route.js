@@ -48,7 +48,7 @@ export async function POST(req) {
     const snapshot = await db
       .collection("Schools")
       .where("schoolName", "==", schoolName.toLowerCase())
-      .where("adminId", "==", adminId)
+      .where("adminId", "==", adminId)  
       .get();
 
     if (!snapshot.empty) {
