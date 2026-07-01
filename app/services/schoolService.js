@@ -179,3 +179,11 @@ export const deleteStudent = (studentId) => {
   return api.delete(`/admission?studentId=${studentId}`);
 };
 
+export const addClass =(schoolId) =>{
+  return api.post(`/classes?schoolId=${schoolId}`)
+}
+
+export const getclasses= (schoolId)=>{
+  return api.get(`/classes?schoolId=${schoolId}`)
+}
+
