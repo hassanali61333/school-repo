@@ -10,20 +10,18 @@ export async function POST(req) {
       adminId,
       headId,
       schoolId,
-      className,
-      grade,
+      class: className,
       section,
-      subject,
+   
     } = body;
 
     const requiredFields = [
       "adminId",
       "headId",
       "schoolId",
-      "className",
-      "grade",
+      "class",
       "section",
-      "subject",
+     
     ];
 
     for (const key of requiredFields) {
@@ -40,13 +38,13 @@ const classExists = await db
   .where("adminId", "==", adminId)
   .where("headId", "==", headId)
   .where("schoolId", "==", schoolId)
-  .where("grade", "==", grade)
+  .where("class", "==", className) 
   .where("section", "==", section)
   .get();
 
 if (!classExists.empty) {
   return NextResponse.json(
-    { error: `${grade}${section} already exists` },
+    { error: `${className}${section} already exists` },
     { status: 400 }
   );
 }
@@ -58,10 +56,9 @@ if (!classExists.empty) {
       adminId,
       headId,
       schoolId,
-      className,
-      grade,
+      class: className,
       section,
-      subject,
+   
       createdAt: new Date().toISOString(),
     });
     return NextResponse.json(

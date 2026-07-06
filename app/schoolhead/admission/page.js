@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { createAdmission, getTeachers } from "@/app/services/schoolService";
+import { createAdmission, getTeachers,addClass,getclasses } from "@/app/services/schoolService";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useDispatch, useSelector } from "react-redux";
@@ -11,23 +11,7 @@ import axios from "axios";
 const onlyDigits = (str) => String(str || "").replace(/\D/g, "");
 
 // ── Static Data ─────────────────────────────────────────────────────────────────
-const INITIAL_CLASSES = [
-  { id: "nursery", name: "Nursery" },
-  { id: "prep", name: "Prep" },
-  { id: "kg", name: "KG" },
-  { id: "1", name: "Class 1" },
-  { id: "2", name: "Class 2" },
-  { id: "3", name: "Class 3" },
-  { id: "4", name: "Class 4" },
-  { id: "5", name: "Class 5" },
-  { id: "6", name: "Class 6" },
-  { id: "7", name: "Class 7" },
-  { id: "8", name: "Class 8" },
-  { id: "9", name: "9th" },
-  { id: "10", name: "10th" },
-  { id: "11", name: "11th" },
-  { id: "12", name: "12th" },
-];
+
 
 const HIGH_CLASSES = ["9", "10", "11", "12"];
 
@@ -67,7 +51,7 @@ const SUBJECTS_11_12 = {
   ICS: [...MC, "Computer Science", "Mathematics", "Physics"],
 };
 
-const DEFAULT_SECTIONS = ["A", "B", "C"];
+
 
 // ── Image Upload ────────────────────────────────────────────────────────────────
 
@@ -105,6 +89,9 @@ export default function AdmissionScreen() {
   const [role, setRole] = useState("student");
   const [scholarshipPercent, setScholarshipPercent] = useState("");
 
+  const [newClass, setNewClass] = useState("");
+const [newSection, setNewSection] = useState("");
+
   // Parent Info
   const [parent, setParent] = useState({
     name: "",
@@ -125,8 +112,8 @@ export default function AdmissionScreen() {
   });
 
   // Academic
-  const [classes, setClasses] = useState(INITIAL_CLASSES);
-  const [newClass, setNewClass] = useState("");
+  const [classes, setClasses] = useState([]);
+
   const [showClassInput, setShowClassInput] = useState(false);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -134,6 +121,8 @@ export default function AdmissionScreen() {
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [extraSubjects, setExtraSubjects] = useState([]);
   const [customSubject, setCustomSubject] = useState("");
+  const [newclass, setnewclass] = useState([]);
+
 
   // Fee Structure
   const [fee, setFee] = useState({
@@ -608,6 +597,72 @@ if (!isFullScholarship) {
 
 
 
+const fetchClasses= async()=>{
+
+  try{
+const res= await getclasses(schoolId)
+console.log("my classes",res.data.data)
+setClasses(res.data.data)
+  }
+  catch (err) {
+    console.log(err)
+  }
+}
+
+useEffect(() => {
+  if (schoolId) {
+    fetchClasses();
+  }
+}, [schoolId]);
+
+
+const handleAddClass = async () => {
+  try {
+    if (!newClass.trim()) {
+      return alert("Please enter class");
+    }
+
+    if (!newSection.trim()) {
+      return alert("Please enter section");
+    }
+
+    const payload = {
+      adminId: user?.adminId || adminId,
+      headId: user?.id || headId,
+      schoolId: user?.schoolId || schoolId,
+      class: newClass.trim(),
+      section: newSection.trim(),
+    };
+
+    const res = await addClass(payload);
+
+    alert(res.data.message);
+
+    // Refresh dropdown
+    fetchClasses();
+
+    // Reset inputs
+    setNewClass("");
+    setNewSection("");
+  } catch (err) {
+    console.error(err);
+
+    alert(err?.response?.data?.error || "Something went wrong");
+  }
+};
+
+const classSectionMap = classes.reduce((acc, c) => {
+  const clsName = String(c.class).trim();      // exact class name
+  const sec = String(c.section).trim();        // exact section
+
+  if (!acc[clsName]) acc[clsName] = [];
+  if (!acc[clsName].includes(sec)) {
+    acc[clsName].push(sec);
+  }
+  return acc;
+}, {});
+
+
 
   
   return (
@@ -823,89 +878,78 @@ if (!isFullScholarship) {
              <h2 className="text-lg font-semibold ">Academic Information</h2>
             </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
   {/* Class */}
   <div>
     <label className={labelCls}>Class *</label>
 
-    <select
-      value={selectedClass}
-      onChange={(e) => {
-        if (e.target.value === "add_new") {
-          setShowClassInput(true);
-        } else {
-          setShowClassInput(false);
-          setSelectedClass(e.target.value);
-          handleClassChange(e.target.value);
-        }
-      }}
-      className={inputCls}
-    >
-      <option value="">Select Class</option>
+  <select
+  value={selectedClass}
+  onChange={(e) => {
+    setSelectedClass(e.target.value);
+    handleClassChange(e.target.value);
+  }}
+  className={inputCls}
+  required
+>
+  <option value="">Select Class</option>
+  {Object.keys(classSectionMap).map((cls) => (
+    <option key={cls} value={cls}>
+      {cls}
+    </option>
+  ))}
+</select>
 
-      {classes.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-        </option>
-      ))}
-
-      <option value="add_new">➕ Add New Class</option>
-    </select>
-
-    {showClassInput && (
-      <div className="mt-2 flex gap-2">
-        <input
-          type="text"
-          placeholder="Enter Class Name"
-          value={newClass}
-          onChange={(e) => setNewClass(e.target.value)}
-          className={`${inputCls} flex-1`}
-        />
-
-        <button
-          type="button"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          onClick={() => {
-            if (!newClass.trim()) return;
-
-            const classObj = {
-              id: newClass.toLowerCase().replace(/\s+/g, "_"),
-              name: newClass,
-            };
-
-            setClasses((prev) => [...prev, classObj]);
-            setSelectedClass(classObj.id);
-            setNewClass("");
-            setShowClassInput(false);
-          }}
-        >
-          Add
-        </button>
-      </div>
-    )}
+    <input
+      type="text"
+      placeholder="Add New Class"
+      value={newClass}
+      onChange={(e) => setNewClass(e.target.value)}
+      className={`${inputCls} mt-2`}
+    />
   </div>
 
   {/* Section */}
   <div>
     <label className={labelCls}>Section *</label>
 
-    <select
-      value={selectedSection}
-      onChange={(e) => setSelectedSection(e.target.value)}
-      required
-      className={inputCls}
-    >
-      <option value="">Select Section</option>
+<select
+  value={selectedSection}
+  onChange={(e) => setSelectedSection(e.target.value)}
+  className={inputCls}
+  required
+>
+  <option value="">Select Section</option>
+  {(classSectionMap[selectedClass] || []).map((s) => (
+    <option key={s} value={s}>
+      {s}
+    </option>
+  ))}
+</select>
 
-      {DEFAULT_SECTIONS.map((s) => (
-        <option key={s} value={s}>
-          Section {s}
-        </option>
-      ))}
-    </select>
+  <input
+  type="text"
+  placeholder="Add New Section"
+  value={newSection}
+  maxLength={1}
+  onChange={(e) =>
+    setNewSection(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())
+  }
+  className={`${inputCls} mt-2`}
+/>
   </div>
 
+</div>
+
+<div className="mt-4">
+  <button
+    type="button"
+    onClick={handleAddClass}
+    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+  >
+    Add Class
+  </button>
 </div>
 
             {isHighClassSelected && (
@@ -920,7 +964,7 @@ if (!isFullScholarship) {
 
             {selectedClass && (!isHighClassSelected || selectedGroup) && (
               <div className="mt-4">
-                <label className={labelCls}>Subjects *</label>
+                <label className={labelCls}>Subjects*</label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {availableSubjects.map((subj) => (
                     <button key={subj} type="button" onClick={() => toggleSubject(subj)}

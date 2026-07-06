@@ -179,8 +179,8 @@ export const deleteStudent = (studentId) => {
   return api.delete(`/admission?studentId=${studentId}`);
 };
 
-export const addClass =(schoolId) =>{
-  return api.post(`/classes?schoolId=${schoolId}`)
+export const addClass =(data) =>{
+  return api.post(`/classes`, data)
 }
 
 export const getclasses= (schoolId)=>{
