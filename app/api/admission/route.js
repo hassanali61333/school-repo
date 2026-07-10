@@ -546,7 +546,9 @@ export async function PUT(request) {
         previousPending,
         registration,
         annual,
-        other
+        other,
+        security: feeSecurity,   // NEW — renamed to avoid collision with reminder.security
+        tuition: feeTuition      // NEW — renamed to avoid collision with reminder.tuition
       },
       reminder: {
         channel,
@@ -583,12 +585,15 @@ export async function PUT(request) {
         depositDate,
         depositStatus,
         month,
+        monthlyPaid,        // NEW
         prevPendingPaid,
         registrationPaid,
         remarks,
         securityPaid,
         totalDue,
-        totalPaid
+        totalPaid,
+        tuitionPaid,        // NEW
+        otherfeePaid        // NEW
       },
       password: studentPassword,
       role,
@@ -625,7 +630,6 @@ export async function PUT(request) {
     if (studentPassword && studentPassword.length < 6) {
       errors.push("Student password must be at least 6 characters");
     }
-    
     
     const pd = onlyDigits(parentPhone);
     if (pd.length < 10 || pd.length > 14) {
@@ -750,6 +754,8 @@ export async function PUT(request) {
       registration: toNumber(registration) || existingData.fee?.registration || 0,
       annual: toNumber(annual) || existingData.fee?.annual || 0,
       other: toNumber(other) || existingData.fee?.other || 0,
+      security: toNumber(feeSecurity) || existingData.fee?.security || 0,   // NEW
+      tuition: toNumber(feeTuition) || existingData.fee?.tuition || 0,      // NEW
       reminder: {
         enabled: autoReminder !== undefined ? !!autoReminder : existingData.fee?.reminder?.enabled || false,
         daysBefore: reminderDaysBefore !== undefined ? parseInt(String(reminderDaysBefore), 10) : existingData.fee?.reminder?.daysBefore || 3,
@@ -767,12 +773,15 @@ export async function PUT(request) {
       depositDate: depositDate || existingData.admissionPayment?.depositDate || null,
       depositStatus: depositStatus || existingData.admissionPayment?.depositStatus || "pending",
       month: month || existingData.admissionPayment?.month || null,
+      monthlyPaid: monthlyPaid || existingData.admissionPayment?.monthlyPaid || null,   // NEW
       prevPendingPaid: toNumber(prevPendingPaid) || existingData.admissionPayment?.prevPendingPaid || 0,
       registrationPaid: toNumber(registrationPaid) || existingData.admissionPayment?.registrationPaid || 0,
       remarks: remarks || existingData.admissionPayment?.remarks || "",
       securityPaid: toNumber(securityPaid) || existingData.admissionPayment?.securityPaid || 0,
       totalDue: toNumber(totalDue) || existingData.admissionPayment?.totalDue || 0,
-      totalPaid: toNumber(totalPaid) || existingData.admissionPayment?.totalPaid || 0
+      totalPaid: toNumber(totalPaid) || existingData.admissionPayment?.totalPaid || 0,
+      tuitionPaid: toNumber(tuitionPaid) || existingData.admissionPayment?.tuitionPaid || 0,        // NEW
+      otherfeePaid: toNumber(otherfeePaid) || existingData.admissionPayment?.otherfeePaid || 0       // NEW
     };
 
     // ── Update payload with all fields ────────────────────────────────────────
@@ -806,6 +815,10 @@ export async function PUT(request) {
       // Role and status
       role: role || existingData.role || "student",
       status: status || existingData.status || "active",
+
+      // Scholarship info
+      scholarship: scholarship !== undefined ? scholarship : existingData.scholarship || false,   // NEW
+      percentage: percentage !== undefined ? Number(percentage) : existingData.percentage || 0,    // NEW
       
       // Parent, fee, payment
       parent: parentUpdate,
@@ -856,7 +869,6 @@ export async function PUT(request) {
     );
   }
 }
-
 // ═════════════════════════════════════════════════════════════════════════════
 // DELETE — Remove student + related records
 // ═════════════════════════════════════════════════════════════════════════════

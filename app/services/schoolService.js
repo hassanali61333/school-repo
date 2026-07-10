@@ -187,3 +187,14 @@ export const getclasses= (schoolId)=>{
   return api.get(`/classes?schoolId=${schoolId}`)
 }
 
+
+
+
+
+// ================= POST =================
+export const generatePayroll = (data) => {
+  return api.post("/payroll", data);
+};
+
+
+
