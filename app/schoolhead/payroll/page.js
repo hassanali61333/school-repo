@@ -1,47 +1,103 @@
 "use client";
 import { useState } from "react";
-import { Users, Wallet, FileCheck2, Info, GraduationCap, Briefcase } from "lucide-react";
-
-// ── Dummy data ────────────────────────────────────────────────────────────
-const DUMMY_TEACHERS = [
-  { id: 1, name: "hassaali", role: "Teacher", salary: 61333 },
-  { id: 2, name: "Ayesha Khan", role: "Teacher", salary: 55000 },
-];
-
-const DUMMY_STAFF = [
-  { id: 1, name: "Hassan", role: "Security Guard", salary: 50000 },
-  { id: 2, name: "Bilal Ahmed", role: "Peon", salary: 28000 },
-];
+import { Users, Wallet, FileCheck2, Info, GraduationCap, Briefcase, Loader2 } from "lucide-react";
+import { getTeachers, getstaff } from "@/app/services/schoolService";
+import { useDispatch, useSelector } from "react-redux";
+import { useEffect } from "react";
+import { setloginuser } from "@/app/store/userSlice";
 
 const AVATAR_COLORS = ["bg-orange-500", "bg-blue-600", "bg-emerald-500", "bg-violet-500"];
 
 function fmt(n) {
-  return n.toLocaleString("en-PK");
+  return (n || 0).toLocaleString("en-PK");
 }
 
 function Avatar({ name, index }) {
   const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
   return (
     <div className={`h-10 w-10 sm:h-11 sm:w-11 rounded-full ${color} flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0`}>
-      {name[0].toUpperCase()}
+      {name?.[0]?.toUpperCase() || "?"}
     </div>
   );
+}
+
+// small inline loader used in stat cards / list header
+function MiniLoader({ className = "" }) {
+  return <Loader2 className={`animate-spin ${className}`} size={14} />;
 }
 
 export default function Payroll() {
   const [activeTab, setActiveTab] = useState("teachers"); // "teachers" | "staff"
   const [locked, setLocked] = useState(false);
 
-  const teacherTotal = DUMMY_TEACHERS.reduce((sum, t) => sum + t.salary, 0);
-  const staffTotal = DUMMY_STAFF.reduce((sum, s) => sum + s.salary, 0);
+  const [teachers, setTeachers] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+
+  const teacherTotal = teachers.reduce((sum, t) => sum + (t.salary || 0), 0);
+  const staffTotal = staff.reduce((sum, s) => sum + (s.salary || 0), 0);
   const totalExpense = teacherTotal + staffTotal;
 
-  const activeList = activeTab === "teachers" ? DUMMY_TEACHERS : DUMMY_STAFF;
+  const activeList = activeTab === "teachers" ? teachers : staff;
+  const activeLoading = activeTab === "teachers" ? loadingTeachers : loadingStaff;
 
   const handleLockAndSave = () => {
     setLocked(true);
     setTimeout(() => setLocked(false), 2000); // dummy reset, no real persistence
   };
+
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const stored = localStorage.getItem("loginuser");
+    if (stored) {
+      const user = JSON.parse(stored);
+      dispatch(setloginuser(user));
+    }
+  }, [dispatch]);
+
+  const admin = useSelector((s) => s.users.loginuser);
+  console.log("Admin in TeacherPage:", admin);
+  const schoolId = admin?.schoolId || "";
+
+  const fetchTeachers = async () => {
+    setLoadingTeachers(true);
+    try {
+      const res = await getTeachers(schoolId);
+      console.log("Fetched teachers:", res.data.data);
+      setTeachers(res.data.data || []);
+    } catch (error) {
+      console.error("Failed to load teachers:", error);
+      showToast("error", "Failed to load teacher list");
+    } finally {
+      setLoadingTeachers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (schoolId) fetchTeachers();
+  }, [schoolId]);
+
+  const fetchStaff = async () => {
+    setLoadingStaff(true);
+    try {
+      const res = await getstaff(schoolId);
+      console.log("Fetched staff:", res.data.data);
+      setStaff(res.data.data || []);
+    } catch (e) {
+      showToast("error", "Failed to load staff list");
+      console.error("Fetch error:", e);
+    } finally {
+      setLoadingStaff(false);
+    }
+  };
+
+  useEffect(() => {
+    if (schoolId) {
+      fetchStaff();
+    }
+  }, [admin?.schoolId]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -49,12 +105,11 @@ export default function Payroll() {
 
       <div className="max-w-md md:max-w-3xl lg:max-w-5xl mx-auto space-y-4 sm:space-y-5">
 
-        {/* ── Top row: Hero + Stat cards (stack on mobile, side by side on md+) ── */}
+        {/* ── Top row: Hero + Stat cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 sm:gap-5">
 
           {/* Hero: Live Estimate */}
           <div className="md:col-span-3 relative overflow-hidden rounded-3xl bg-gray-700 p-5 sm:p-6 text-white shadow-lg shadow-blue-200">
-            {/* decorative circles */}
             <div className="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-white/10"></div>
             <div className="absolute top-10 right-16 h-16 w-16 rounded-full bg-white/10"></div>
 
@@ -69,7 +124,10 @@ export default function Payroll() {
             </div>
 
             <p className="relative mt-4 text-sm font-medium text-blue-100">July 2026</p>
-            <p className="relative text-3xl sm:text-4xl font-bold mt-1">PKR {fmt(totalExpense)}</p>
+            <p className="relative text-3xl sm:text-4xl font-bold mt-1 flex items-center gap-2">
+              PKR {fmt(totalExpense)}
+              {(loadingTeachers || loadingStaff) && <MiniLoader className="text-blue-200" />}
+            </p>
             <p className="relative text-xs text-blue-200 mt-1 tracking-wide">TOTAL SALARY EXPENSE</p>
 
             <div className="relative mt-4 flex items-start gap-2 bg-white/10 rounded-xl px-3.5 py-2.5 text-xs text-blue-100">
@@ -86,10 +144,12 @@ export default function Payroll() {
                   <Users size={16} className="text-violet-600" />
                 </div>
                 <span className="text-[11px] font-semibold text-violet-500 uppercase tracking-wide">
-                  Teachers ({DUMMY_TEACHERS.length})
+                  Teachers ({teachers.length})
                 </span>
               </div>
-              <p className="text-lg sm:text-xl font-bold text-violet-700">Rs {fmt(teacherTotal)}</p>
+              <p className="text-lg sm:text-xl font-bold text-violet-700 flex items-center gap-2">
+                {loadingTeachers ? <MiniLoader className="text-violet-400" /> : `Rs ${fmt(teacherTotal)}`}
+              </p>
             </div>
 
             <div className="bg-orange-50 rounded-2xl p-4 flex flex-col justify-center">
@@ -98,10 +158,12 @@ export default function Payroll() {
                   <Briefcase size={16} className="text-orange-600" />
                 </div>
                 <span className="text-[11px] font-semibold text-orange-500 uppercase tracking-wide">
-                  Staff ({DUMMY_STAFF.length})
+                  Staff ({staff.length})
                 </span>
               </div>
-              <p className="text-lg sm:text-xl font-bold text-orange-700">Rs {fmt(staffTotal)}</p>
+              <p className="text-lg sm:text-xl font-bold text-orange-700 flex items-center gap-2">
+                {loadingStaff ? <MiniLoader className="text-orange-400" /> : `Rs ${fmt(staffTotal)}`}
+              </p>
             </div>
           </div>
         </div>
@@ -131,7 +193,7 @@ export default function Payroll() {
             <span className={`text-[10px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center ${
               activeTab === "teachers" ? "bg-white/25" : "bg-gray-100 text-gray-500"
             }`}>
-              {DUMMY_TEACHERS.length}
+              {loadingTeachers ? <MiniLoader size={10} /> : teachers.length}
             </span>
           </button>
           <button
@@ -147,7 +209,7 @@ export default function Payroll() {
             <span className={`text-[10px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center ${
               activeTab === "staff" ? "bg-white/25" : "bg-gray-100 text-gray-500"
             }`}>
-              {DUMMY_STAFF.length}
+              {loadingStaff ? <MiniLoader size={10} /> : staff.length}
             </span>
           </button>
         </div>
@@ -159,28 +221,39 @@ export default function Payroll() {
         </div>
 
         {/* ── List ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3">
-          {activeList.map((person, idx) => (
-            <div
-              key={person.id}
-              className="bg-white rounded-2xl border border-gray-100 p-3.5 flex items-center gap-3 shadow-sm"
-            >
-              <span className="text-xs text-gray-300 font-medium w-5 flex-shrink-0">#{idx + 1}</span>
-              <Avatar name={person.name} index={idx} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800 truncate">{person.name}</p>
-                <span className="inline-flex items-center gap-1 text-xs text-blue-500 mt-0.5">
-                  {activeTab === "teachers" ? <GraduationCap size={12} /> : <Briefcase size={12} />}
-                  {person.role}
-                </span>
+        {activeLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+            <MiniLoader className="text-blue-500" />
+            <p className="text-sm">Loading {activeTab === "teachers" ? "teachers" : "staff"}...</p>
+          </div>
+        ) : activeList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <p className="text-sm">No {activeTab === "teachers" ? "teachers" : "staff"} found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3">
+            {activeList.map((person, idx) => (
+              <div
+                key={person.id || person._id || idx}
+                className="bg-white rounded-2xl border border-gray-100 p-3.5 flex items-center gap-3 shadow-sm"
+              >
+                <span className="text-xs text-gray-300 font-medium w-5 flex-shrink-0">#{idx + 1}</span>
+                <Avatar name={person.name} index={idx} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{person.name}</p>
+                  <span className="inline-flex items-center gap-1 text-xs text-blue-500 mt-0.5">
+                    {activeTab === "teachers" ? <GraduationCap size={12} /> : <Briefcase size={12} />}
+                    {person.role}
+                  </span>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-orange-500">{fmt(person.salary)}</p>
+                  <p className="text-[10px] text-gray-400">PKR / month</p>
+                </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-sm font-bold text-orange-500">{fmt(person.salary)}</p>
-                <p className="text-[10px] text-gray-400">PKR / month</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
