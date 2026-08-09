@@ -197,4 +197,20 @@ export const generatePayroll = (data) => {
 };
 
 
+/* ──────────────────────────────────────────────────────────
+   Append these to your existing app/services/schoolService.js
+   (same file where addstaff / getstaff / updatestaff already live,
+   using the same `api` axios instance)
+────────────────────────────────────────────────────────── */
 
+export const savePayrollReport = (data) => {
+  return api.post("/payroll", data);
+}; 
+
+export const getPayrollReport = (schoolId, monthlabel) => {
+  return api.get(`/payroll?schoolId=${schoolId}&monthlabel=${monthlabel}`);
+};
+
+export const getPayrollReportsList = (schoolId) => {
+  return api.get(`/payroll-report?schoolId=${schoolId}&list=true`);
+};

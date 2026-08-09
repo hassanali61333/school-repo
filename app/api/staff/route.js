@@ -64,7 +64,7 @@ export async function POST(req) {
       schoolName = '',
       
       // Staff basic - MATCHING EXACT FIELD NAMES from your data
-      fullName,
+      name,
       email,
       phoneNumber,
       cnic,
@@ -83,7 +83,7 @@ export async function POST(req) {
     } = body;
 
     // Use fullName as name for validation
-    const name = fullName;
+  
     const phone = phoneNumber;
     
     const err = validatePayload({ 
@@ -126,7 +126,7 @@ export async function POST(req) {
       headId,
       schoolId,
       schoolName,
-      fullName: fullName.trim(),
+      name: name.trim(),
       email: email.trim(),
       phoneNumber: phoneNumber,
       cnic: cnic,

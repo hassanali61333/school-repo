@@ -165,7 +165,7 @@ export default function StaffPage() {
 
       // Prepare payload with exact field names matching backend
       const payload = {
-        fullName: form.fullName,
+        name: form.fullName,
         phoneNumber: form.phoneNumber,
         cnic: form.cnic,
         salary: Number(form.salary),
@@ -356,7 +356,7 @@ export default function StaffPage() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 truncate">{member.fullName}</p>
+                      <p className="font-bold text-slate-800 truncate">{member.name}</p>
                       <p className="text-xs text-indigo-500 font-semibold">{member.designation}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-slate-500">
                         <span>📞 {member.phoneNumber}</span>
