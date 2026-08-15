@@ -269,6 +269,7 @@ console.log("Admin data from Redux");
       setLoading(true);
       setError("");
       const response = await getStudents(schoolId);
+      console.log("Fetched students response:", response.data);
       if (response.data.success) {
         const transformedStudents = response.data.students.map(student => ({
           id: student.id,

@@ -10,6 +10,8 @@ const navItems = [
   { label: "Teachers", href: "/schoolhead/teachers", icon: "👨‍🏫" },
   { label: "Staff", href: "/schoolhead/staff", icon: "👷" },
   { label: "Payroll", href: "/schoolhead/payroll", icon: "👷" },
+  { label: "Fee Affairs", href: "/schoolhead/feeAffair", icon: "💰" },
+
 
  
   { label: "Expenses", href: "/schoolhead/reports", icon: "📊" },
