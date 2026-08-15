@@ -12,7 +12,7 @@ const navItems = [
   { label: "Payroll", href: "/schoolhead/payroll", icon: "👷" },
 
  
-  { label: "Reports", href: "/schoolhead/reports", icon: "📊" },
+  { label: "Expenses", href: "/schoolhead/reports", icon: "📊" },
   { label: "admission", href: "/schoolhead/admission", icon: "📊" },
   { label: "contact", href: "/schoolhead/contact", icon: "📊" },
   { label: "School Timing", href: "/schoolhead/schTiming", icon: "📊" },

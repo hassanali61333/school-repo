@@ -150,11 +150,11 @@ function StatCard({ label, value, icon, color }) {
   };
   const c = colors[color] || colors.blue;
   return (
-    <div className={`${c.bg} rounded-2xl p-5 flex items-center gap-4 border border-white shadow-sm`}>
-      <div className={`${c.icon} rounded-xl p-3 text-2xl flex-shrink-0`}>{icon}</div>
-      <div>
-        <p className={`text-xs font-semibold uppercase tracking-widest ${c.text}`}>{label}</p>
-        <p className={`text-3xl font-bold mt-0.5 ${c.val}`}>{value}</p>
+    <div className={`${c.bg} rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 border border-white shadow-sm min-w-0`}>
+      <div className={`${c.icon} rounded-xl p-2.5 sm:p-3 text-xl sm:text-2xl flex-shrink-0`}>{icon}</div>
+      <div className="min-w-0">
+        <p className={`text-[10px] sm:text-xs font-semibold uppercase tracking-widest ${c.text} truncate`}>{label}</p>
+        <p className={`text-2xl sm:text-3xl font-bold mt-0.5 ${c.val}`}>{value}</p>
       </div>
     </div>
   );
@@ -662,38 +662,29 @@ console.log("Admin data from Redux");
   }
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50">
+    <div className="p-3 sm:p-6 min-h-screen bg-gray-50">
       <ToastContainer position="top-right" autoClose={3000} />
 
-      <div className="w-full ">
+      <div className="w-full">
 
         {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Students Management</h1>
-            <p className="text-sm text-gray-400 mt-1">
-              {schoolName || "Loading..."} &nbsp;·&nbsp; ID: {schoolId}
-            </p>
-          </div>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm shadow-md shadow-emerald-100 transition-all active:scale-95"
-          >
-            <span className="text-lg leading-none">+</span> Add Student
-          </button>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Students Management</h1>
+          <p className="text-sm text-gray-400 mt-1 break-words">
+            {schoolName || "Loading..."} &nbsp;·&nbsp; ID: {schoolId}
+          </p>
         </div>
 
         {/* ── Stat Cards ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <StatCard label="Total Students"   value={totalStudents}   icon="🎓" color="blue"   />
           <StatCard label="Active"            value={activeStudents}  icon="✅" color="green"  />
           <StatCard label="Inactive"          value={inactiveStudents}icon="⏸️" color="red"    />
-       
         </div>
 
         {/* ── Search + Filter Bar ── */}
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 sm:max-w-md">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">🔍</span>
             <input
               type="text"
@@ -703,12 +694,12 @@ console.log("Admin data from Redux");
               className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-sm"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-0.5 sm:pb-0">
             {["all", "active", "inactive"].map(f => (
               <button
                 key={f}
                 onClick={() => setStatusFilter(f)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                   statusFilter === f
                     ? f === "active"   ? "bg-emerald-600 text-white border-emerald-600"
                     : f === "inactive" ? "bg-red-500 text-white border-red-500"
@@ -722,8 +713,108 @@ console.log("Admin data from Redux");
           </div>
         </div>
 
-        {/* ── Table ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* ── Mobile: Loading / Empty states (shared) ── */}
+        {loading && (
+          <div className="md:hidden bg-white rounded-2xl border border-gray-100 py-16 flex justify-center items-center gap-3">
+            <div className="animate-spin rounded-full h-7 w-7 border-4 border-emerald-100 border-t-emerald-600"></div>
+            <span className="text-gray-400 text-sm">Loading students...</span>
+          </div>
+        )}
+        {!loading && filtered.length === 0 && (
+          <div className="md:hidden bg-white rounded-2xl border border-gray-100 py-16 flex flex-col items-center gap-2">
+            <span className="text-4xl">🎓</span>
+            <p className="text-gray-400 text-sm">{search ? "No matching students found" : "No students found"}</p>
+          </div>
+        )}
+
+        {/* ── Mobile: Card list (below md) ── */}
+        {!loading && filtered.length > 0 && (
+          <div className="md:hidden space-y-3">
+            {filtered.map((s) => (
+              <div key={s.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                <div className="flex items-start gap-3">
+                  {s.imageUrl ? (
+                    <img src={s.imageUrl} alt={s.fullName} className="h-11 w-11 rounded-full object-cover border-2 border-white shadow-sm flex-shrink-0" />
+                  ) : (
+                    <div className="h-11 w-11 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm">
+                      {(s.fullName || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{s.fullName}</p>
+                        <p className="text-xs text-gray-400 font-mono">Roll No {s.rollNo}</p>
+                      </div>
+                      <span className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                        s.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${s.status === "active" ? "bg-emerald-500" : "bg-red-500"}`}></span>
+                        {s.status === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-semibold">
+                        {s.className}{s.section && ` · ${s.section}`}
+                      </span>
+                      {s.gender && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-gray-50 text-gray-500 text-[11px] font-semibold">
+                          {s.gender}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-2.5 space-y-1 text-xs text-gray-500">
+                      <p><span className="text-gray-400">Teacher:</span> {s.teacherName || "—"}</p>
+                      <p><span className="text-gray-400">Parent:</span> {s.parentName || "—"}</p>
+                      <p className="font-mono"><span className="text-gray-400 font-sans">Phone:</span> {s.parentPhone || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
+                  <button
+                    onClick={() => openEdit(s)}
+                    disabled={saving}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-600 transition-all disabled:opacity-40"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s.id, s.fullName)}
+                    disabled={deletingId === s.id}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-red-100 bg-white hover:bg-red-50 text-xs font-semibold text-red-500 transition-all disabled:opacity-40"
+                  >
+                    {deletingId === s.id ? (
+                      <><div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div> Deleting...</>
+                    ) : "🗑️ Delete"}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <div className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400">
+              <p>
+                Showing <span className="font-semibold text-gray-600">{filtered.length}</span> of{" "}
+                <span className="font-semibold text-gray-600">{students.length}</span>
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block"></span>
+                  {activeStudents} active
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-red-400 inline-block"></span>
+                  {inactiveStudents} inactive
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Desktop: Table (md and up) ── */}
+        <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px]">
               <thead>
@@ -818,7 +909,7 @@ console.log("Admin data from Redux");
 
           {/* ── Table Footer ── */}
           {!loading && (
-            <div className="px-5 py-3.5 border-t border-gray-50 flex items-center justify-between bg-gray-50/50">
+            <div className="px-4 sm:px-5 py-3.5 border-t border-gray-50 flex flex-col sm:flex-row gap-2 sm:gap-0 items-start sm:items-center justify-between bg-gray-50/50">
               <p className="text-xs text-gray-400">
                 Showing <span className="font-semibold text-gray-600">{filtered.length}</span> of{" "}
                 <span className="font-semibold text-gray-600">{students.length}</span> students
@@ -842,12 +933,12 @@ console.log("Admin data from Redux");
           MODAL — Add / Edit Student
       ══════════════════════════════════════════ */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-4xl my-8 shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-4xl my-0 sm:my-8 shadow-2xl">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl z-10">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
+            <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl z-10">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                   {editStudent ? "Edit Student" : "Add New Student"}
                 </h2>
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -856,16 +947,16 @@ console.log("Admin data from Redux");
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="h-9 w-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all text-lg"
+                className="h-9 w-9 flex-shrink-0 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all text-lg"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-6 max-h-[68vh] overflow-y-auto space-y-7">
+            <div className="p-4 sm:p-6 max-h-[68vh] overflow-y-auto space-y-6 sm:space-y-7">
 
               {/* Section: Teacher */}
-              <div className="bg-blue-50 rounded-2xl p-5">
+              <div className="bg-blue-50 rounded-2xl p-4 sm:p-5">
                 <h3 className="text-sm font-bold text-blue-800 mb-4 flex items-center gap-2">
                   <span>👨‍🏫</span> Teacher Incharge
                 </h3>
@@ -989,7 +1080,7 @@ console.log("Admin data from Redux");
                 <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
                   <span>📚</span> Academic
                 </h3>
-                <div className="flex gap-2 items-end">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
                   <div className="flex-1">
                     <label className={labelCls}>Class <span className="text-red-400">*</span></label>
                     <select value={formData.className} onChange={(e) => handleClassChange(e.target.value)} className={inputCls}>
@@ -1013,7 +1104,7 @@ console.log("Admin data from Redux");
                   </div>
                 )}
 
-                <div className="mt-4 flex gap-2 items-end">
+                <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-end">
                   <div className="flex-1">
                     <label className={labelCls}>Section <span className="text-red-400">*</span></label>
                     <select value={formData.section} onChange={(e) => setFormData({...formData, section: e.target.value})} className={inputCls}>
@@ -1032,14 +1123,14 @@ console.log("Admin data from Redux");
 
                 {formData.className && (!isHighClassSelected || formData.group) && (
                   <div className="mt-4">
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
                       <label className={labelCls}>Subjects</label>
                       <button type="button" onClick={() => {
                         if (!formData.className) { toast.error("Select class first"); return; }
                         setSelectedClassForSubject(formData.className);
                         setSelectedGroupForSubject(formData.group);
                         setShowAddSubjectModal(true);
-                      }} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold transition-all">
+                      }} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold transition-all self-start sm:self-auto">
                         + Subject
                       </button>
                     </div>
@@ -1059,7 +1150,7 @@ console.log("Admin data from Redux");
                     ) : (
                       <p className="text-xs text-gray-400 mb-2 py-3 text-center bg-gray-50 rounded-xl">No subjects available. Add subjects using the button above.</p>
                     )}
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
                       <input type="text" value={customSubject} onChange={(e) => setCustomSubject(e.target.value)}
                         placeholder="Add custom subject..." className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50" />
                       <button type="button" onClick={addCustomSubject}
@@ -1110,13 +1201,13 @@ console.log("Admin data from Redux");
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0 bg-white rounded-b-2xl">
+            <div className="p-4 sm:p-6 border-t border-gray-100 flex flex-col-reverse sm:flex-row justify-end gap-3 sticky bottom-0 bg-white rounded-b-2xl">
               <button onClick={() => setShowModal(false)}
                 className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">
                 Cancel
               </button>
               <button onClick={handleSave} disabled={saving}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-emerald-100 disabled:opacity-50 flex items-center gap-2 transition-all">
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-emerald-100 disabled:opacity-50 flex items-center justify-center gap-2 transition-all">
                 {saving ? (
                   <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>{editStudent ? "Updating..." : "Saving..."}</>
                 ) : (
@@ -1130,8 +1221,8 @@ console.log("Admin data from Redux");
 
       {/* ── Add Class Modal ── */}
       {showAddClassModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-96 shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold mb-1">Add New Class</h3>
             <p className="text-xs text-gray-400 mb-5">Create a custom class for your school</p>
             <div className="space-y-3">
@@ -1154,8 +1245,8 @@ console.log("Admin data from Redux");
 
       {/* ── Add Section Modal ── */}
       {showAddSectionModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-96 shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold mb-1">Add New Section</h3>
             <p className="text-xs text-gray-400 mb-5">Add an extra section for a class</p>
             <label className={labelCls}>Section Name</label>
@@ -1170,8 +1261,8 @@ console.log("Admin data from Redux");
 
       {/* ── Add Subject Modal ── */}
       {showAddSubjectModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-96 shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold mb-1">Add New Subject</h3>
             <p className="text-xs text-gray-400 mb-5">Add a custom subject to this class</p>
             <label className={labelCls}>Subject Name</label>
@@ -1186,4 +1277,3 @@ console.log("Admin data from Redux");
     </div>
   );
 }
-

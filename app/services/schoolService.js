@@ -196,7 +196,7 @@ export const generatePayroll = (data) => {
   return api.post("/payroll", data);
 };
 
-
+ 
 /* ──────────────────────────────────────────────────────────
    Append these to your existing app/services/schoolService.js
    (same file where addstaff / getstaff / updatestaff already live,
@@ -214,3 +214,13 @@ export const getPayrollReport = (schoolId, monthlabel) => {
 export const getPayrollReportsList = (schoolId) => {
   return api.get(`/payroll-report?schoolId=${schoolId}&list=true`);
 };
+
+
+export const getExpenses = (schoolId) => {
+  return api.get(`/expenses?schoolId=${schoolId}`);
+};
+
+export const addExpense = (data) => {
+  return api.post("/expenses", data);
+};
+

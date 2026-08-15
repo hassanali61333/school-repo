@@ -249,7 +249,7 @@ export default function TeacherPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-5 shadow-lg">
+      <div className="bg-gray-700 px-6 py-5 shadow-lg">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           {view !== 'list' ? (
             <button
