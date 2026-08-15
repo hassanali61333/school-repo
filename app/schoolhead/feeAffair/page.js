@@ -68,6 +68,9 @@ export default function FeeAffairPage() {
 
   const CLASS_LIST = [
     "KG",
+    "Nursery",
+    "Prep",
+    "Hifz",
     "1",
     "2",
     "3",
