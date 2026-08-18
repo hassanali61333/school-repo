@@ -10,6 +10,37 @@ export default function FeeAffairPage() {
   const [statusFilter, setStatusFilter] = useState("all"); // all | paid | pending
   const [classFilter, setClassFilter] = useState("all");
 
+  // --- Month / Calendar selector ---
+  const getCurrentMonthKey = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey()); // "YYYY-MM"
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+
+  const monthLabel = (monthKey) => {
+    const [y, m] = monthKey.split("-");
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return d.toLocaleDateString("en-US", { year: "numeric", month: "long" });
+  };
+
+  const shiftMonth = (offset) => {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const d = new Date(y, m - 1 + offset, 1);
+    setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  // Generate a list of recent months (last 12) for the dropdown
+  const monthOptions = useMemo(() => {
+    const opts = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+    return opts;
+  }, []);
+
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [voucherStudent, setVoucherStudent] = useState(null);
   const [feeFields, setFeeFields] = useState({
@@ -25,9 +56,7 @@ export default function FeeAffairPage() {
   const [paidAmount, setPaidAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
+
 
   const fetchStudents = async () => {
     try {
@@ -53,6 +82,12 @@ export default function FeeAffairPage() {
         return;
       }
 
+        useEffect(() => {
+    if(schoolId){
+    fetchStudents();
+
+    }
+  }, []);
       const res = await getStudents(schoolId);
       const studentList = res?.data?.students || res?.data || [];
       console.log("Fetched students:", studentList);
@@ -67,9 +102,10 @@ export default function FeeAffairPage() {
   };
 
   const CLASS_LIST = [
-    "KG",
+    "Pre-Nursery",
     "Nursery",
     "Prep",
+    "KG",
     "Hifz",
     "1",
     "2",
@@ -85,15 +121,34 @@ export default function FeeAffairPage() {
     "12",
   ];
 
+  // --- Helper: get the payment record relevant to selectedMonth ---
+  // Agar student.feeHistory (array of { month: "YYYY-MM", ...admissionPayment fields })
+  // backend se aata hai to us se selected month ka record uthate hain.
+  // Warna fallback: current admissionPayment agar depositDate usi month ka hai.
+  const getPaymentForMonth = (student, monthKey) => {
+    if (Array.isArray(student.feeHistory)) {
+      const record = student.feeHistory.find((h) => h.month === monthKey);
+      if (record) return record;
+      // Is month ka koi record nahi mila -> treat as unpaid/no-data for that month
+      return null;
+    }
+
+    // Fallback: sirf current admissionPayment hi available hai
+    const payment = student.admissionPayment;
+    if (!payment) return null;
+    const depositMonth = payment.depositDate
+      ? payment.depositDate.slice(0, 7) // "YYYY-MM"
+      : null;
+    if (depositMonth === monthKey) return payment;
+
+    // Agar selected month current month hai aur koi depositDate nahi hai to bhi dikha dein
+    if (monthKey === getCurrentMonthKey() && !depositMonth) return payment;
+
+    return null;
+  };
+
   const filteredStudents = useMemo(() => {
     let list = students;
-
-    // Status filter
-    if (statusFilter === "paid") {
-      list = list.filter((s) => s.admissionPayment?.depositStatus === "paid");
-    } else if (statusFilter === "pending") {
-      list = list.filter((s) => s.admissionPayment?.depositStatus !== "paid");
-    }
 
     // Class filter
     if (classFilter !== "all") {
@@ -120,21 +175,40 @@ export default function FeeAffairPage() {
       });
     }
 
+    // Attach the month-specific payment to each student, then apply status filter
+    list = list.map((s) => ({
+      ...s,
+      _monthPayment: getPaymentForMonth(s, selectedMonth),
+    }));
+
+    if (statusFilter === "paid") {
+      list = list.filter((s) => s._monthPayment?.depositStatus === "paid");
+    } else if (statusFilter === "pending") {
+      list = list.filter(
+        (s) => s._monthPayment && s._monthPayment.depositStatus !== "paid"
+      );
+    } else if (statusFilter === "unpaid") {
+      list = list.filter((s) => !s._monthPayment);
+    }
+
     return list;
-  }, [students, searchQuery, statusFilter, classFilter]);
+  }, [students, searchQuery, statusFilter, classFilter, selectedMonth]);
 
-  // Stats
+  // Stats — recalculated per selected month
   const stats = useMemo(() => {
-    const paid = students.filter(
-      (s) => s.admissionPayment?.depositStatus === "paid"
-    ).length;
-    const pending = students.filter(
-      (s) => s.admissionPayment?.depositStatus === "pending"
-    ).length;
-    const total = students.length;
+    let paid = 0;
+    let pending = 0;
+    let unpaid = 0;
 
-    return { paid, pending, total };
-  }, [students]);
+    students.forEach((s) => {
+      const p = getPaymentForMonth(s, selectedMonth);
+      if (!p) unpaid++;
+      else if (p.depositStatus === "paid") paid++;
+      else pending++;
+    });
+
+    return { paid, pending, unpaid, total: students.length };
+  }, [students, selectedMonth]);
 
   // --- Pay Fee Logic ---
   const openPayModal = (student) => {
@@ -195,13 +269,14 @@ export default function FeeAffairPage() {
       const totalDue = currentPayment.totalDue || 0;
       const newBalance = Math.max(0, totalDue - newTotalPaid);
       const newStatus = newTotalPaid >= totalDue ? "paid" : "pending";
+      const todayISO = new Date().toISOString().split("T")[0];
 
       const updatedPayment = {
         ...currentPayment,
         totalPaid: newTotalPaid,
         balance: newBalance,
         depositStatus: newStatus,
-        depositDate: new Date().toISOString().split("T")[0],
+        depositDate: todayISO,
       };
 
       const safeFee = {
@@ -247,12 +322,23 @@ export default function FeeAffairPage() {
         },
       };
 
+      // Append this month's record into feeHistory so previous months stay browsable
+      const monthKey = todayISO.slice(0, 7);
+      const existingHistory = Array.isArray(selectedStudent.feeHistory)
+        ? selectedStudent.feeHistory.filter((h) => h.month !== monthKey)
+        : [];
+      const updatedHistory = [
+        ...existingHistory,
+        { month: monthKey, ...updatedPayment },
+      ];
+
       const fullPayload = {
         ...selectedStudent,
         fee: safeFee,
         reminder: safeReminder,
         parent: safeParent,
         admissionPayment: updatedPayment,
+        feeHistory: updatedHistory,
       };
 
       await updateStudent({
@@ -263,7 +349,7 @@ export default function FeeAffairPage() {
       setStudents((prev) =>
         prev.map((s) =>
           s.id === selectedStudent.id
-            ? { ...s, admissionPayment: updatedPayment }
+            ? { ...s, admissionPayment: updatedPayment, feeHistory: updatedHistory }
             : s
         )
       );
@@ -325,40 +411,92 @@ export default function FeeAffairPage() {
           </p>
         </div>
 
-    <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 text-center relative overflow-hidden">
+        {/* Month / Calendar Selector */}
+        <div className="flex items-center gap-2 mb-6">
+          <button
+            onClick={() => shiftMonth(-1)}
+            className="w-9 h-9 shrink-0 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition"
+            aria-label="Previous month"
+          >
+            ‹
+          </button>
+
+          <div className="relative flex-1">
+            <button
+              onClick={() => setShowMonthPicker((v) => !v)}
+              className="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-indigo-700 shadow-sm hover:bg-slate-50 transition"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {monthLabel(selectedMonth)}
+              <span className="text-xs">▾</span>
+            </button>
+
+            {showMonthPicker && (
+              <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-2xl shadow-lg max-h-64 overflow-y-auto">
+                {monthOptions.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      setSelectedMonth(m);
+                      setShowMonthPicker(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-indigo-50 transition ${
+                      m === selectedMonth ? "font-bold text-indigo-700 bg-indigo-50" : "text-slate-700"
+                    }`}
+                  >
+                    {monthLabel(m)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => shiftMonth(1)}
+            className="w-9 h-9 shrink-0 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition"
+            aria-label="Next month"
+          >
+            ›
+          </button>
+        </div>
+
+        {/* Stats — per selected month */}
+        <div className="grid grid-cols-4 gap-3 mb-8">
+          <div className="bg-gray-700 rounded-2xl border border-emerald-100 shadow-sm p-4 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-            <p className="text-2xl font-bold text-emerald-600">{stats.paid}</p>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Paid</p>
+            <p className="text-2xl font-bold text-emerald-500">{stats.paid}</p>
+            <p className="text-xs text-white mt-1 font-medium">Paid</p>
           </div>
-          <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-4 text-center relative overflow-hidden">
+          <div className="bg-gray-700 rounded-2xl border border-amber-100 shadow-sm p-4 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
-            <p className="text-2xl font-bold text-amber-600">
-              {stats.pending}
-            </p>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              Pending
-            </p>
+            <p className="text-2xl font-bold text-amber-500">{stats.pending}</p>
+            <p className="text-xs text-white mt-1 font-medium">Pending</p>
           </div>
-          <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 text-center relative overflow-hidden">
+          <div className="bg-gray-700 rounded-2xl border border-red-100 shadow-sm p-4 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
+            <p className="text-2xl font-bold text-red-500">{stats.unpaid}</p>
+            <p className="text-xs text-white mt-1 font-medium">Unpaid</p>
+          </div>
+          <div className="bg-gray-700 rounded-2xl border border-indigo-100 shadow-sm p-4 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
-            <p className="text-2xl font-bold text-indigo-600">
-              {stats.total}
-            </p>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Total</p>
+            <p className="text-2xl font-bold text-indigo-400">{stats.total}</p>
+            <p className="text-xs text-white mt-1 font-medium">Total</p>
           </div>
         </div>
-        {/* Search Bar */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-4 px-4 scrollbar-hide">
+
+        {/* Class Filter — horizontal scroll */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-4 px-4 scrollbar-hide">
           <button
             onClick={() => setClassFilter("all")}
             className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
               classFilter === "all"
                 ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                : "bg-white text-green border-slate-200 hover:bg-slate-50"
             }`}
           >
-            All Classes
+            All
           </button>
           {CLASS_LIST.map((cls) => (
             <button
@@ -375,12 +513,13 @@ export default function FeeAffairPage() {
           ))}
         </div>
 
-        {/* Status Filter — All / Pending / Paid */}
-        <div className="flex gap-2 mb-4">
+        {/* Status Filter — All / Pending / Paid / Unpaid */}
+        <div className="flex gap-2 mb-4 flex-wrap">
           {[
-            { key: "all", label: "All" },
+            { key: "all", label: "All students" },
             { key: "pending", label: "Pending" },
             { key: "paid", label: "Paid" },
+            { key: "unpaid", label: "Unpaid (no record)" },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -391,6 +530,8 @@ export default function FeeAffairPage() {
                     ? "bg-emerald-600 text-white border-emerald-600"
                     : key === "pending"
                     ? "bg-amber-500 text-white border-amber-500"
+                    : key === "unpaid"
+                    ? "bg-red-500 text-white border-red-500"
                     : "bg-indigo-600 text-white border-indigo-600"
                   : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
               }`}
@@ -400,12 +541,8 @@ export default function FeeAffairPage() {
           ))}
         </div>
 
-        {/* Class Filter — horizontal scroll, KG to 12 */}
-    
-
-        {/* Stats */}
-    
-      <div className="relative mb-6">
+        {/* Search Bar */}
+        <div className="relative mb-6">
           <svg
             className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
             fill="none"
@@ -427,6 +564,7 @@ export default function FeeAffairPage() {
             className="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
           />
         </div>
+
         {/* Student List */}
         {filteredStudents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -435,14 +573,15 @@ export default function FeeAffairPage() {
             </div>
             <p className="text-slate-500 font-medium">No students found</p>
             <p className="text-slate-400 text-sm mt-1">
-              Try a different name, roll number, or father's name.
+              Try a different name, roll number, month, or father's name.
             </p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             {filteredStudents.map((student) => {
-              const payment = student.admissionPayment;
+              const payment = student._monthPayment;
               const isPaid = payment?.depositStatus === "paid";
+              const hasRecord = !!payment;
               const total = payment?.totalDue || 0;
               const paidAmt = payment?.totalPaid || 0;
               const progress =
@@ -459,7 +598,9 @@ export default function FeeAffairPage() {
                         className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${
                           isPaid
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-indigo-100 text-indigo-700"
+                            : hasRecord
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {getInitials(student)}
@@ -482,10 +623,12 @@ export default function FeeAffairPage() {
                       className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${
                         isPaid
                           ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700"
+                          : hasRecord
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-red-100 text-red-600"
                       }`}
                     >
-                      {isPaid ? "Paid" : "Pending"}
+                      {isPaid ? "Paid" : hasRecord ? "Pending" : "No record"}
                     </span>
                   </div>
 
@@ -666,7 +809,7 @@ export default function FeeAffairPage() {
       )}
 
       {/* Voucher Modal */}
-  
+
     </div>
   );
 }
